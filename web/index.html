@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="UTF-8" />
+		<title>Hello World - Rust</title>
+		<style>
+			#main-canvas {
+				position: absolute;
+				inset: 0;
+				width: 100%;
+				height: 100%;
+				background-color: black;
+			}
+		</style>
+	</head>
+	<body>
+		<canvas id="main-canvas"></canvas>
+		<script type="module">
+			import init from "./pkg/car_game.js";
+
+			const runWasm = async () => {
+				const wasmModule = await init("./pkg/car_game_bg.wasm");
+
+				wasmModule.run_game();
+			};
+			console.debug("WASM module loaded")
+			runWasm();
+		</script>
+	</body>
+</html>
