@@ -7,6 +7,13 @@ edition = "2024"
 crate-type = ["cdylib"]
 
 [dependencies]
+anyhow = "1.0"
 console_error_panic_hook = "0.1.7"
+console_log = { version = "1", features = ["color"] }
+log = "0.4"
+pollster = "0.3"
 wasm-bindgen = "0.2.100"
-web-sys = { version = "0.3.77", features = ["Window", "Document", "HtmlElement", "Text"] }
+wasm-bindgen-futures = "0.4.30"
+web-sys = { version = "0.3.77", features = ["Window", "Document", "Element"] }
+winit = { version = "0.30", features = ["android-native-activity"] }
+wgpu = { version = "26.0.1", features = ["webgl", "webgpu"] }
