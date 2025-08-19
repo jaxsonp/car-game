@@ -1,3 +1,8 @@
+mod macros;
+pub mod material;
+pub mod mesh;
+pub mod vert;
+
 use std::sync::Arc;
 
 use wasm_bindgen::prelude::*;
@@ -9,6 +14,11 @@ use winit::{
     window::Window,
 };
 
+pub use material::Material;
+pub use mesh::Mesh;
+pub use vert::Vertex;
+
+/// Main rendering object
 pub struct RenderState {
     surface: wgpu::Surface<'static>,
     device: wgpu::Device,
@@ -32,7 +42,6 @@ impl RenderState {
     // We don't need this to be async right now,
     // but we will in the next tutorial
     pub async fn new(window: Arc<Window>) -> anyhow::Result<Self> {
-        obj::read("adsfads");
         let size = window.inner_size();
 
         // The instance is a handle to our GPU
@@ -94,13 +103,13 @@ impl RenderState {
 
         let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Vertex Buffer"),
-            contents: bytemuck::cast_slice(VERTICES),
+            contents: bytemuck::cast_slice(BAKED_CUBE_MESH.verts),
             usage: wgpu::BufferUsages::VERTEX,
         });
 
         let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Index Buffer"),
-            contents: bytemuck::cast_slice(INDICES),
+            contents: bytemuck::cast_slice(BAKED_CUBE_MESH.indices),
             usage: wgpu::BufferUsages::INDEX,
         });
 
@@ -164,7 +173,7 @@ impl RenderState {
             vertex: wgpu::VertexState {
                 module: &shader,
                 entry_point: Some("vs_main"),
-                buffers: &[Vertex::desc()],
+                buffers: &[Vertex::BUFFER_LAYOUT],
                 compilation_options: wgpu::PipelineCompilationOptions::default(),
             },
             fragment: Some(wgpu::FragmentState {
@@ -304,7 +313,7 @@ impl RenderState {
             render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
             render_pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16); // 1.
 
-            render_pass.draw_indexed(0..(INDICES.len() as u32), 0, 0..1); // 2.
+            render_pass.draw_indexed(0..(BAKED_CUBE_MESH.indices.len() as u32), 0, 0..1); // 2.
         }
 
         // submit will accept anything that implements IntoIter
@@ -315,57 +324,33 @@ impl RenderState {
     }
 }
 
-#[repr(C)]
-#[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
-struct Vertex {
-    position: [f32; 3],
-    color: [f32; 3],
-}
-impl Vertex {
-    fn desc() -> wgpu::VertexBufferLayout<'static> {
-        wgpu::VertexBufferLayout {
-            array_stride: std::mem::size_of::<Vertex>() as wgpu::BufferAddress,
-            step_mode: wgpu::VertexStepMode::Vertex,
-            attributes: &[
-                wgpu::VertexAttribute {
-                    offset: 0,
-                    shader_location: 0,
-                    format: wgpu::VertexFormat::Float32x3,
-                },
-                wgpu::VertexAttribute {
-                    offset: std::mem::size_of::<[f32; 3]>() as wgpu::BufferAddress,
-                    shader_location: 1,
-                    format: wgpu::VertexFormat::Float32x3,
-                },
-            ],
-        }
-    }
-}
+const BAKED_CUBE_MESH: Mesh = load_obj!("test_cube.obj");
 
-const VERTICES: &[Vertex] = &[
+/*const VERTICES: &[Vertex] = &[
     Vertex {
-        position: [-0.0868241, 0.49240386, 0.0],
+        pos: [-0.0868241, 0.49240386, 0.0],
         color: [1.0, 0.0, 0.0],
     }, // A
     Vertex {
-        position: [-0.49513406, 0.06958647, 0.0],
+        pos: [-0.49513406, 0.06958647, 0.0],
         color: [0.0, 1.0, 0.0],
     }, // B
     Vertex {
-        position: [-0.21918549, -0.44939706, 0.0],
+        pos: [-0.21918549, -0.44939706, 0.0],
         color: [0.0, 0.0, 1.0],
     }, // C
     Vertex {
-        position: [0.35966998, -0.3473291, 0.0],
+        pos: [0.35966998, -0.3473291, 0.0],
         color: [0.0, 0.0, 0.0],
     }, // D
     Vertex {
-        position: [0.44147372, 0.2347359, 0.0],
+        pos: [0.44147372, 0.2347359, 0.0],
         color: [1.0, 1.0, 1.0],
     }, // E
 ];
 
 const INDICES: &[u16] = &[0, 1, 4, 1, 2, 4, 2, 3, 4];
+*/
 
 #[derive(Debug)]
 struct Camera {
