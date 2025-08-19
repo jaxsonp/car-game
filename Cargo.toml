@@ -9,6 +9,7 @@ crate-type = ["cdylib"]
 [dependencies]
 anyhow = "1.0"
 bytemuck = { version = "1.16", features = [ "derive" ] }
+cgmath = "0.18"
 console_error_panic_hook = "0.1.7"
 console_log = { version = "1", features = ["color"] }
 log = "0.4"

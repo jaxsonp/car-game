@@ -1,12 +1,12 @@
 
-WASM_OUTDIR = ./web/pkg
+WASM_OUTDIR = ./web/pkg/
 
-.PHONY: wasm wasm-release clean
+.PHONY: build build-release clean
 
-wasm:
-	wasm-pack build --target web --out-dir $(WASM_OUTDIR) --dev
+build:
+	wasm-pack build --target web --out-dir $(WASM_OUTDIR) --dev 
 
-wasm-release:
+build-release:
 	wasm-pack build --target web --out-dir $(WASM_OUTDIR) --release
 
 clean:
