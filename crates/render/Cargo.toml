@@ -1,0 +1,16 @@
+[package]
+name = "render"
+authors.workspace = true
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+anyhow = "1.0"
+bytemuck = { version = "1.16", features = [ "derive" ] }
+cgmath = { workspace = true }
+log = { workspace = true }
+obj = { workspace = true }
+wasm-bindgen = { workspace = true }
+wgpu = { workspace = true }
+winit = { workspace = true }

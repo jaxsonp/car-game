@@ -228,13 +228,12 @@ dependencies = [
 name = "car-game"
 version = "0.1.0"
 dependencies = [
- "anyhow",
- "bytemuck",
  "cgmath",
  "console_error_panic_hook",
  "console_log",
  "log",
- "pollster",
+ "obj",
+ "render",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",
@@ -897,6 +896,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "obj"
+version = "0.1.0"
+dependencies = [
+ "log",
+]
+
+[[package]]
 name = "objc"
 version = "0.2.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1223,12 +1229,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "pollster"
-version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "22686f4785f02a4fcc856d3b3bb19bf6c8160d103f7a99cc258bddd0251dc7f2"
-
-[[package]]
 name = "portable-atomic"
 version = "1.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1325,6 +1325,20 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5407465600fb0548f1442edf71dd20683c6ed326200ace4b1ef0763521bb3b77"
 dependencies = [
  "bitflags 2.9.2",
+]
+
+[[package]]
+name = "render"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "bytemuck",
+ "cgmath",
+ "log",
+ "obj",
+ "wasm-bindgen",
+ "wgpu",
+ "winit",
 ]
 
 [[package]]

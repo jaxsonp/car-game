@@ -1,21 +1,43 @@
+[workspace]
+members = ["crates/*"]
+resolver = "3"
+
+[workspace.package]
+version = "0.1.0"
+authors = ["Jaxson Pahukula <jaxpahu@gmail.com>"]
+edition = "2024"
+rust-version = "1.89"
+
+[workspace.dependencies]
+cgmath = "0.18"
+log = "0.4"
+obj = { path = "./crates/obj" }
+render = { path = "./crates/render" }
+wasm-bindgen = "0.2.100"
+wgpu = { version = "26.0.1", features = ["webgl", "webgpu"] }
+winit = { version = "0.30", features = ["android-native-activity"] }
+
+
 [package]
 name = "car-game"
-version = "0.1.0"
-edition = "2024"
+description = "A game about a car"
+authors = { workspace = true }
+version = { workspace = true }
+edition = { workspace = true }
+rust-version = { workspace = true }
 
 [lib]
 crate-type = ["cdylib"]
 
 [dependencies]
-anyhow = "1.0"
-bytemuck = { version = "1.16", features = [ "derive" ] }
-cgmath = "0.18"
+cgmath = { workspace = true }
 console_error_panic_hook = "0.1.7"
 console_log = { version = "1", features = ["color"] }
-log = "0.4"
-pollster = "0.3"
-wasm-bindgen = "0.2.100"
+log = { workspace = true }
+obj = { workspace = true }
+render = { workspace = true }
+wasm-bindgen = { workspace = true }
 wasm-bindgen-futures = "0.4.30"
 web-sys = { version = "0.3.77", features = ["Window", "Document", "Element"] }
-winit = { version = "0.30", features = ["android-native-activity"] }
-wgpu = { version = "26.0.1", features = ["webgl", "webgpu"] }
+wgpu = { workspace = true }
+winit = { workspace = true }
