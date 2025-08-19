@@ -241,10 +241,14 @@ impl State {
     }
 
     pub fn resize(&mut self, width: u32, height: u32) {
+        log::debug!("Resized ({width}x{height})");
         if width > 0 && height > 0 {
             self.config.width = width;
             self.config.height = height;
+            self.surface.configure(&self.device, &self.config);
+            self.is_surface_configured = true;
 
+            // update camera
             self.camera.aspect = (width as f32) / (height as f32);
             self.camera_uniform.update_view_proj(&self.camera);
             self.queue.write_buffer(
@@ -252,11 +256,7 @@ impl State {
                 0,
                 bytemuck::cast_slice(&[self.camera_uniform]),
             );
-
-            self.surface.configure(&self.device, &self.config);
-            self.is_surface_configured = true;
         }
-        log::debug!("Resized ({width}x{height})")
     }
 
     pub fn handle_key(&self, event_loop: &ActiveEventLoop, code: KeyCode, is_pressed: bool) {
