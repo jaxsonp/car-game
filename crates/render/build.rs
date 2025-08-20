@@ -4,13 +4,24 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use obj::ParsedOBJ;
+use obj::{OBJMaterial, OBJMesh};
 
+/// This build script re-parses obj assets into `RawMesh`es
+///
+/// To be specific, for every `xyz.obj` file in the assets directory, this script produces an `xyz.obj.rs` file in
+/// `OUT_DIR`, containing a value of the following type: `&[RawMesh]`, with one `RawMesh` per material in the file
 fn main() {
     let assets_dir = "../../assets";
     println!("cargo::rerun-if-changed={}", assets_dir);
 
     let out_dir = PathBuf::from(std::env::var("OUT_DIR").unwrap());
+
+    // if this is rust analyzer, create dummy file
+    if std::env::var("RA_RUNNING").is_ok_and(|val| val == "1") {
+        unsafe {
+            std::env::set_var("OUT_DIR", out_dir.as_os_str());
+        }
+    }
 
     for file in std::fs::read_dir(assets_dir).unwrap() {
         if file.is_err() {
@@ -37,12 +48,12 @@ fn main() {
             output_path.to_str().unwrap()
         );
         match obj::parse_obj_file(file_path.clone()) {
-            Ok(mesh) => {
-                emit_parsed_obj(mesh, output_path).expect("Error while writing parsed OBJ");
+            Ok(meshes) => {
+                emit_parsed_obj(meshes, output_path).expect("Error while writing parsed OBJ");
             }
             Err(e) => {
                 println!(
-                    "cargo::error=Error while parsing {}\n{}",
+                    "cargo::error=Error while parsing \'{}\': {}",
                     file_path.to_str().unwrap(),
                     e
                 );
@@ -51,46 +62,40 @@ fn main() {
     }
 }
 
-fn emit_parsed_obj(mesh: ParsedOBJ, file_path: PathBuf) -> std::io::Result<()> {
+fn emit_parsed_obj(meshes: Vec<(OBJMaterial, OBJMesh)>, file_path: PathBuf) -> std::io::Result<()> {
     let file = File::create(file_path)?;
     let mut output = BufWriter::new(file);
 
     output.write(b"// Baked mesh, generated via build script\n")?;
-
-    output.write(b"Mesh {\n")?;
-    output.write(b"\tverts: &[\n")?;
-    for vert in mesh.verts {
+    output.write(b"&[\n")?;
+    for (material, mesh) in meshes {
+        output.write(b"\tRawMesh {\n")?;
+        output.write(b"\t\tverts: &[\n")?;
+        for vert in mesh.verts {
+            output.write(
+                format!(
+                    "\t\t\tVertex {{ pos: [{}f32, {}f32, {}f32] }},\n",
+                    vert.pos[0], vert.pos[1], vert.pos[2]
+                )
+                .as_bytes(),
+            )?;
+        }
+        output.write(b"\t\t],\n")?;
+        output.write(b"\t\tindices: &[\n")?;
+        for face in mesh.faces {
+            output.write(format!("\t\t\t{}, {}, {},\n", face[0], face[1], face[2]).as_bytes())?;
+        }
+        output.write(b"\t\t],\n")?;
+        output.write(b"")?;
         output.write(
             format!(
-                "\t\tVertex {{ pos: [{}f32, {}f32, {}f32] }},\n",
-                vert.pos[0], vert.pos[1], vert.pos[2]
+                "\t\tmaterial: Material {{ color: [{}f32, {}f32, {}f32, 1f32] }},\n",
+                material.diffuse_color[0], material.diffuse_color[1], material.diffuse_color[2]
             )
             .as_bytes(),
         )?;
+        output.write(b"\t},\n")?;
     }
-    output.write(b"\t],\n")?;
-    output.write(b"\tvert_normals: false,\n")?;
-    output.write(b"\tvert_texcoords: false,\n")?;
-    output.write(b"\tindices: &[\n")?;
-    for face in mesh.faces {
-        output.write(format!("\t\t{}, {}, {},\n", face[0], face[1], face[2]).as_bytes())?;
-    }
-    output.write(b"\t],\n")?;
-    output.write(b"\tcolor: [0.9, 0.2, 0.2],\n")?;
-    output.write(b"}")?;
+    output.write(b"]")?;
     Ok(())
 }
-
-/*
-Mesh {
-    pub verts: &'static [Vertex],
-    pub vert_normals: bool,
-    pub vert_texcoords: bool,
-    pub indices: &'static [u16],
-    pub color: [f32; 3],
-}
-
-Vertex {
-    pub pos: [f32; 3],
-}
-*/

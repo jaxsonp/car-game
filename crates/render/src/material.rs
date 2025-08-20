@@ -1,5 +1,6 @@
-use cgmath::Vector3;
-
+#[repr(C)]
+#[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct Material {
-    color: Vector3<f32>,
+    /// RGBA
+    pub color: [f32; 4],
 }

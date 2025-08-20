@@ -1,8 +1,14 @@
-// Vertex shader
+// shader to render the diffuse material in the scene
+// Bind groups:
+// 0: Once per render
+// 1: Once per mesh/material
+
+// vert shader ---------------------------------------
+
 struct CameraUniform {
     view_proj: mat4x4<f32>,
 };
-@group(0) @binding(0) // 1.
+@group(0) @binding(0)
 var<uniform> camera: CameraUniform;
 
 struct VertexInput {
@@ -16,7 +22,7 @@ struct VertexOutput {
 }
 
 @vertex
-fn vs_main(
+fn vert_main(
     model: VertexInput,
 ) -> VertexOutput {
     var out: VertexOutput;
@@ -25,9 +31,13 @@ fn vs_main(
     return out;
 }
 
-// Fragment shader
+
+// frag shader ---------------------------------------
+
+@group(1) @binding(0)
+var<uniform> mesh_color: vec4<f32>;
 
 @fragment
-fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
-    return vec4<f32>(1.0, 0.5, 0.2, 1.0);
+fn frag_main(in: VertexOutput) -> @location(0) vec4<f32> {
+    return mesh_color;
 }
