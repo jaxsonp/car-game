@@ -1,15 +1,13 @@
 // shader to render the diffuse material in the scene
 // Bind groups:
 // 0: Once per render
+//   0: camera matrix
 // 1: Once per mesh/material
 
 // vert shader ---------------------------------------
 
-struct CameraUniform {
-    view_proj: mat4x4<f32>,
-};
 @group(0) @binding(0)
-var<uniform> camera: CameraUniform;
+var<uniform> camera_matrix: mat4x4<f32>;
 
 struct VertexInput {
     @location(0) position: vec3<f32>,
@@ -27,7 +25,7 @@ fn vert_main(
 ) -> VertexOutput {
     var out: VertexOutput;
     //out.color = model.color;
-    out.clip_position = camera.view_proj * vec4<f32>(model.position, 1.0); // 2.
+    out.clip_position = camera_matrix * vec4<f32>(model.position, 1.0);
     return out;
 }
 

@@ -1,8 +1,6 @@
-use std::cell::OnceCell;
-
 use wgpu::{
-    BindGroupDescriptor, BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingType,
-    BufferBindingType, BufferUsages, ShaderStages,
+    BindGroupDescriptor, BindGroupLayout, BindGroupLayoutDescriptor, BindGroupLayoutEntry,
+    BindingType, BufferBindingType, BufferUsages, ShaderStages,
     util::{BufferInitDescriptor, DeviceExt},
 };
 
@@ -38,9 +36,10 @@ impl Mesh {
             usage: BufferUsages::UNIFORM.union(BufferUsages::COPY_DST),
         });
 
+        let bind_group_layout = Self::get_bind_group_layout(device);
         let bind_group = device.create_bind_group(&BindGroupDescriptor {
             label: Some("mesh bind group"),
-            layout: &Self::bind_group_layout(device),
+            layout: &bind_group_layout,
             entries: &[wgpu::BindGroupEntry {
                 binding: 0,
                 resource: material_color_buffer.as_entire_binding(),
@@ -55,25 +54,20 @@ impl Mesh {
         }
     }
 
-    const BIND_GROUP_LAYOUT: OnceCell<wgpu::BindGroupLayout> = OnceCell::new();
-    pub fn bind_group_layout(device: &wgpu::Device) -> wgpu::BindGroupLayout {
-        Self::BIND_GROUP_LAYOUT
-            .get_or_init(|| {
-                device.create_bind_group_layout(&BindGroupLayoutDescriptor {
-                    label: Some("mesh bind group layout"),
-                    entries: &[BindGroupLayoutEntry {
-                        binding: 0,
-                        visibility: ShaderStages::FRAGMENT,
-                        ty: BindingType::Buffer {
-                            ty: BufferBindingType::Uniform,
-                            has_dynamic_offset: false,
-                            min_binding_size: None,
-                        },
-                        count: None,
-                    }],
-                })
-            })
-            .clone()
+    pub fn get_bind_group_layout(device: &wgpu::Device) -> BindGroupLayout {
+        device.create_bind_group_layout(&BindGroupLayoutDescriptor {
+            label: Some("mesh bind group layout"),
+            entries: &[BindGroupLayoutEntry {
+                binding: 0,
+                visibility: ShaderStages::FRAGMENT,
+                ty: BindingType::Buffer {
+                    ty: BufferBindingType::Uniform,
+                    has_dynamic_offset: false,
+                    min_binding_size: None,
+                },
+                count: None,
+            }],
+        })
     }
 }
 

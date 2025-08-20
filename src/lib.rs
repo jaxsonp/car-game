@@ -116,6 +116,6 @@ impl ApplicationHandler<RenderState> for App {
             } => state.handle_key(event_loop, code, key_state.is_pressed()),
             _ => {}
         }
-        state.camera_controller.process_events(&event);
+        state.scene.cam_controller.process_events(&event);
     }
 }

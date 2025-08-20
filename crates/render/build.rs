@@ -42,11 +42,6 @@ fn main() {
             .join(file_path.file_name().unwrap())
             .with_extension("obj.rs");
 
-        println!(
-            "cargo::warning=Parsing OBJ file \'{}\'\t(output: \'{}\')",
-            file_path.to_str().unwrap(),
-            output_path.to_str().unwrap()
-        );
         match obj::parse_obj_file(file_path.clone()) {
             Ok(meshes) => {
                 emit_parsed_obj(meshes, output_path).expect("Error while writing parsed OBJ");
@@ -67,6 +62,7 @@ fn emit_parsed_obj(meshes: Vec<(OBJMaterial, OBJMesh)>, file_path: PathBuf) -> s
     let mut output = BufWriter::new(file);
 
     output.write(b"// Baked mesh, generated via build script\n")?;
+
     output.write(b"&[\n")?;
     for (material, mesh) in meshes {
         output.write(b"\tRawMesh {\n")?;
@@ -86,7 +82,6 @@ fn emit_parsed_obj(meshes: Vec<(OBJMaterial, OBJMesh)>, file_path: PathBuf) -> s
             output.write(format!("\t\t\t{}, {}, {},\n", face[0], face[1], face[2]).as_bytes())?;
         }
         output.write(b"\t\t],\n")?;
-        output.write(b"")?;
         output.write(
             format!(
                 "\t\tmaterial: Material {{ color: [{}f32, {}f32, {}f32, 1f32] }},\n",
