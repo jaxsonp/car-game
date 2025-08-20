@@ -58,14 +58,15 @@ impl Default for OBJMaterial {
     }
 }
 
-/// Reads in a Wavefront .obj file
+/// Reads in a Wavefront .obj file.
 ///
 /// This parser only supports the following:
-/// - Geometric vertices, texture coordinates, and normals
-/// - **Triangulated** faces (quads/polys will be parsed incorrectly)
-/// - `.mtl` diffuse color only
+/// - Geometric vertices~~, texture coordinates,~~ and normals
+/// - Diffuse color in mtllib materials
+/// - Triangular faces (poly faces can be read, but will just be parsed as a tri fan, which may produce incorrect results)
 ///
-/// This parser ignores named objects and groups, instead grouping faces by material
+/// This parser ignores named objects and groups, instead treating the whole file as a model and grouping faces into
+/// meshes by material
 pub fn parse_obj_file(input_filepath: PathBuf) -> io::Result<Vec<(OBJMaterial, OBJMesh)>> {
     let input_file = File::open(input_filepath.clone())?;
     let input = BufReader::new(input_file);
@@ -88,22 +89,28 @@ pub fn parse_obj_file(input_filepath: PathBuf) -> io::Result<Vec<(OBJMaterial, O
         let mut words = line.split_ascii_whitespace().map(String::from);
         match words.next().unwrap().as_str() {
             "v" => raw_vert_positions.push(parse_vertex(words)),
-            "f" => current_mesh
-                .faces
-                .push(parse_tri(words).map(|v: VertIndexes| {
-                    let new_vert = Vert {
-                        pos: raw_vert_positions[v.pos_index],
-                    };
-                    // checking if this vert already exists (yes I know it is O(n^2) shut up idc)
-                    for (index, existing_vert) in current_mesh.verts.iter().enumerate() {
-                        if new_vert == *existing_vert {
-                            return index; // vert already exists
-                        }
-                    }
-                    // this is a new vert, emit it
-                    current_mesh.verts.push(new_vert);
-                    return current_mesh.verts.len() - 1;
-                })),
+            "f" => current_mesh.faces.append(
+                &mut parse_faces(words)
+                    .into_iter()
+                    .map(|verts| {
+                        verts.map(|v: VertIndexes| {
+                            let new_vert = Vert {
+                                pos: raw_vert_positions[v.pos_index],
+                            };
+                            // checking if this vert already exists (yes I know it is O(n^2) shut up idc)
+                            for (index, existing_vert) in current_mesh.verts.iter().enumerate() {
+                                if new_vert == *existing_vert {
+                                    return index; // vert already exists
+                                }
+                            }
+                            // this is a new vert, emit it
+                            current_mesh.verts.push(new_vert);
+                            return current_mesh.verts.len() - 1;
+                        })
+                    })
+                    .collect(),
+            ),
+
             "mtllib" => parse_mtl_file(
                 input_filepath.parent().unwrap().join(words.next().unwrap()),
                 &mut material_list,
@@ -147,7 +154,8 @@ fn parse_vertex<I: Iterator<Item = String>>(mut words: I) -> [f32; 3] {
     return [x / w, y / w, z / w];
 }
 
-fn parse_tri<I: Iterator<Item = String>>(mut words: I) -> [VertIndexes; 3] {
+/// parses a face, treating poly-faces as triangle fans
+fn parse_faces<I: Iterator<Item = String>>(mut words: I) -> Vec<[VertIndexes; 3]> {
     let parse_vertex = |s: String| {
         let mut nums = s.splitn(3, '/');
         let vi = nums.next().unwrap().parse::<usize>().unwrap();
@@ -155,11 +163,32 @@ fn parse_tri<I: Iterator<Item = String>>(mut words: I) -> [VertIndexes; 3] {
         let _vni = nums.next().map(|s| s.parse::<usize>().unwrap());
         return VertIndexes { pos_index: vi - 1 };
     };
-    return [
-        parse_vertex(words.next().unwrap()),
-        parse_vertex(words.next().unwrap()),
-        parse_vertex(words.next().unwrap()),
-    ];
+    let mut first_and_last_vert = None;
+    let mut parse_face = || {
+        if let Some(word) = words.next() {
+            if let Some((first, last)) = first_and_last_vert {
+                let face = [first, last, parse_vertex(word)];
+                first_and_last_vert = Some((first, face[2]));
+                Some(face)
+            } else {
+                let face = [
+                    parse_vertex(word),
+                    parse_vertex(words.next().unwrap()),
+                    parse_vertex(words.next().unwrap()),
+                ];
+                first_and_last_vert = Some((face[0], face[2]));
+                Some(face)
+            }
+        } else {
+            None
+        }
+    };
+
+    let mut faces = Vec::new();
+    while let Some(new) = parse_face() {
+        faces.push(new);
+    }
+    return faces;
 }
 
 //fn parse_mtllib(file)

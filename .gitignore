@@ -1,5 +1,4 @@
 /target
 /wasm-pack.log
 
-/assets.blend
-/assets.blend1
+*.blend1
