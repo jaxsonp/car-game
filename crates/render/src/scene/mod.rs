@@ -7,9 +7,9 @@ pub struct Scene {
 }
 
 impl Scene {
-    pub fn new(device: &Device, queue: &wgpu::Queue) -> Scene {
+    pub fn new(device: &Device) -> Scene {
         Scene {
-            test_cube: Model::from_raw(load_obj!("test_cube.obj"), device, queue),
+            test_cube: Model::from_raw(load_obj!("test_cube.obj"), device),
         }
     }
 

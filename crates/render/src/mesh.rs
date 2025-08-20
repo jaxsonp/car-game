@@ -2,7 +2,7 @@ use std::cell::OnceCell;
 
 use wgpu::{
     BindGroupDescriptor, BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingType,
-    BufferBindingType, BufferDescriptor, BufferUsages, ShaderStages,
+    BufferBindingType, BufferUsages, ShaderStages,
     util::{BufferInitDescriptor, DeviceExt},
 };
 

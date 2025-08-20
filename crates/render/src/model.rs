@@ -6,7 +6,7 @@ pub struct Model {
     meshes: Vec<Mesh>,
 }
 impl Model {
-    pub fn from_raw(raw_meshes: &[RawMesh], device: &wgpu::Device, queue: &wgpu::Queue) -> Model {
+    pub fn from_raw(raw_meshes: &[RawMesh], device: &wgpu::Device) -> Model {
         Model {
             meshes: raw_meshes
                 .into_iter()

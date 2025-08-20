@@ -27,12 +27,10 @@ pub struct RenderState {
     is_surface_configured: bool,
     pub window: Arc<Window>,
 
-    scene_render_pipeline: wgpu::RenderPipeline,
-
     scene: Scene,
+    scene_render_pipeline: wgpu::RenderPipeline,
+    depth_texture: DepthTexture,
 
-    //vertex_buffer: wgpu::Buffer,
-    //index_buffer: wgpu::Buffer,
     camera: Camera,
     camera_uniform: CameraUniform,
     camera_buffer: wgpu::Buffer,
@@ -145,7 +143,9 @@ impl RenderState {
             }],
         });
 
-        let scene = Scene::new(&device, &queue);
+        let depth_texture = DepthTexture::new(&device, &config);
+
+        let scene = Scene::new(&device);
 
         let scene_render_pipeline = {
             let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
@@ -191,7 +191,13 @@ impl RenderState {
                     unclipped_depth: false,
                     conservative: false,
                 },
-                depth_stencil: None,
+                depth_stencil: Some(wgpu::DepthStencilState {
+                    format: DepthTexture::TEXTURE_FORMAT,
+                    depth_write_enabled: true,
+                    depth_compare: wgpu::CompareFunction::Less,
+                    stencil: wgpu::StencilState::default(),
+                    bias: wgpu::DepthBiasState::default(),
+                }),
                 multisample: wgpu::MultisampleState {
                     count: 1,
                     mask: !0,
@@ -209,8 +215,9 @@ impl RenderState {
             config,
             is_surface_configured: false,
             window,
-            scene_render_pipeline,
             scene,
+            scene_render_pipeline,
+            depth_texture,
             camera,
             camera_uniform,
             camera_buffer,
@@ -219,13 +226,15 @@ impl RenderState {
         })
     }
 
-    pub fn resize(&mut self, width: u32, height: u32) {
+    pub fn handle_resize(&mut self, width: u32, height: u32) {
         log::debug!("Resized ({width}x{height})");
         if width > 0 && height > 0 {
             self.config.width = width;
             self.config.height = height;
+
             self.surface.configure(&self.device, &self.config);
             self.is_surface_configured = true;
+            self.depth_texture = DepthTexture::new(&self.device, &self.config);
 
             // update camera
             self.camera.aspect = (width as f32) / (height as f32);
@@ -284,7 +293,14 @@ impl RenderState {
                     },
                     depth_slice: None,
                 })],
-                depth_stencil_attachment: None,
+                depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                    view: &self.depth_texture.view,
+                    depth_ops: Some(wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(1.0),
+                        store: wgpu::StoreOp::Store,
+                    }),
+                    stencil_ops: None,
+                }),
                 timestamp_writes: None,
                 occlusion_query_set: None,
             });
@@ -438,5 +454,36 @@ impl CameraController {
             camera.eye = camera.target
                 - (forward - right * CameraController::SPEED).normalize() * forward_mag;
         }
+    }
+}
+
+struct DepthTexture {
+    #[allow(dead_code)]
+    texture: wgpu::Texture,
+    view: wgpu::TextureView,
+}
+impl DepthTexture {
+    const TEXTURE_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Depth32Float;
+
+    pub fn new(device: &wgpu::Device, config: &wgpu::SurfaceConfiguration) -> DepthTexture {
+        let size = wgpu::Extent3d {
+            width: config.width.max(1),
+            height: config.height.max(1),
+            depth_or_array_layers: 1,
+        };
+        let descriptor = wgpu::TextureDescriptor {
+            label: Some("Depth texture"),
+            size,
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: Self::TEXTURE_FORMAT,
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING,
+            view_formats: &[],
+        };
+        let texture = device.create_texture(&descriptor);
+
+        let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
+        Self { texture, view }
     }
 }

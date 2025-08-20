@@ -80,7 +80,7 @@ impl ApplicationHandler<RenderState> for App {
     fn user_event(&mut self, _event_loop: &ActiveEventLoop, mut event: RenderState) {
         // This is where proxy.send_event() ends up
         event.window.request_redraw();
-        event.resize(
+        event.handle_resize(
             event.window.inner_size().width,
             event.window.inner_size().height,
         );
@@ -100,7 +100,7 @@ impl ApplicationHandler<RenderState> for App {
 
         match event {
             WindowEvent::CloseRequested => event_loop.exit(),
-            WindowEvent::Resized(size) => state.resize(size.width, size.height),
+            WindowEvent::Resized(size) => state.handle_resize(size.width, size.height),
             WindowEvent::RedrawRequested => {
                 state.update();
                 state.render().expect_throw("Render failed");
