@@ -1,4 +1,4 @@
-mod camera;
+pub mod camera;
 mod macros;
 mod material;
 mod mesh;
@@ -13,9 +13,9 @@ use wgpu::{
     BindGroupDescriptor, BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingType,
     BufferBindingType, BufferDescriptor, RequestAdapterOptions, ShaderStages,
 };
-use winit::{event_loop::ActiveEventLoop, keyboard::KeyCode, window::Window};
+use winit::{event::WindowEvent, window::Window};
 
-use crate::scene::Scene;
+use crate::scene::RenderScene;
 
 /// Main rendering object
 pub struct RenderState {
@@ -26,7 +26,7 @@ pub struct RenderState {
     is_surface_configured: bool,
     pub window: Arc<Window>,
 
-    pub scene: Scene,
+    pub scene: RenderScene,
     scene_render_pipeline: wgpu::RenderPipeline,
     depth_texture: DepthTexture,
 
@@ -93,7 +93,7 @@ impl RenderState {
             desired_maximum_frame_latency: 2,
         };
 
-        let scene = Scene::new(&device, &config);
+        let scene = RenderScene::new(&device, &config);
 
         let camera_buffer = device.create_buffer(&BufferDescriptor {
             label: Some("Camera Buffer"),
@@ -224,23 +224,15 @@ impl RenderState {
         }
     }
 
-    pub fn handle_key(&self, event_loop: &ActiveEventLoop, code: KeyCode, is_pressed: bool) {
-        match (code, is_pressed) {
-            (KeyCode::Escape, true) => event_loop.exit(),
-            _ => {}
-        }
-    }
+    pub fn handle_window_event(&mut self, _event: &WindowEvent) {}
 
-    pub fn update(&mut self) {
-        self.scene.update();
+    pub fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
         self.queue.write_buffer(
             &self.camera_buffer,
             0,
             bytemuck::cast_slice(&[self.scene.cam.get_view_projection_matrix()]),
         );
-    }
 
-    pub fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
         self.window.request_redraw();
 
         // We can't render unless the surface is configured

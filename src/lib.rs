@@ -1,3 +1,5 @@
+mod camera;
+
 use std::sync::Arc;
 
 use render::RenderState;
@@ -6,9 +8,11 @@ use winit::{
     application::ApplicationHandler,
     event::*,
     event_loop::{ActiveEventLoop, EventLoop},
-    keyboard::PhysicalKey,
+    keyboard::{KeyCode, PhysicalKey},
     window::Window,
 };
+
+use crate::camera::{CameraController, DebugCameraController};
 
 const CANVAS_ID: &str = "main-canvas";
 
@@ -33,12 +37,17 @@ pub fn run_game() -> Result<(), wasm_bindgen::JsValue> {
 pub struct App {
     proxy: Option<winit::event_loop::EventLoopProxy<RenderState>>,
     state: Option<RenderState>,
+    debug_camera_controller: DebugCameraController,
 }
 
 impl App {
     pub fn new(event_loop: &EventLoop<RenderState>) -> Self {
         let proxy = Some(event_loop.create_proxy());
-        Self { state: None, proxy }
+        Self {
+            state: None,
+            proxy,
+            debug_camera_controller: DebugCameraController::new(),
+        }
     }
 }
 
@@ -102,7 +111,7 @@ impl ApplicationHandler<RenderState> for App {
             WindowEvent::CloseRequested => event_loop.exit(),
             WindowEvent::Resized(size) => state.handle_resize(size.width, size.height),
             WindowEvent::RedrawRequested => {
-                state.update();
+                self.debug_camera_controller.update(&mut state.scene.cam);
                 state.render().expect_throw("Render failed");
             }
             WindowEvent::KeyboardInput {
@@ -113,9 +122,19 @@ impl ApplicationHandler<RenderState> for App {
                         ..
                     },
                 ..
-            } => state.handle_key(event_loop, code, key_state.is_pressed()),
+            } => {
+                let pressed = key_state.is_pressed();
+                match (code, pressed) {
+                    (KeyCode::Escape, true) => {
+                        log::info!("Program exiting");
+                        event_loop.exit()
+                    }
+                    _ => {}
+                }
+            }
             _ => {}
         }
-        state.scene.cam_controller.process_events(&event);
+        self.debug_camera_controller.handle_window_event(&event);
+        state.handle_window_event(&event);
     }
 }

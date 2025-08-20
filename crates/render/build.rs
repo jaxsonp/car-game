@@ -1,7 +1,7 @@
 use std::{
     fs::File,
-    io::{self, BufWriter, Write},
-    path::{Path, PathBuf},
+    io::{BufWriter, Write},
+    path::PathBuf,
 };
 
 use obj::{OBJMaterial, OBJMesh};
