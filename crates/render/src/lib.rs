@@ -1,5 +1,6 @@
 pub mod camera;
 mod debug;
+mod gui;
 mod macros;
 mod material;
 mod mesh;
@@ -11,11 +12,11 @@ use std::sync::Arc;
 use wasm_bindgen::prelude::*;
 use wgpu::{
     BindGroupDescriptor, BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingType,
-    BufferBindingType, BufferDescriptor, RenderPipeline, RequestAdapterOptions, ShaderStages,
+    BufferBindingType, BufferDescriptor, RequestAdapterOptions, ShaderStages,
 };
 use winit::{event::WindowEvent, window::Window};
 
-use crate::{camera::Camera, debug::DebugLines, scene::RenderScene};
+use crate::{camera::Camera, debug::DebugLines, gui::GuiOverlay, scene::RenderScene};
 
 /// Main rendering object
 pub struct RenderState {
@@ -24,16 +25,19 @@ pub struct RenderState {
     queue: wgpu::Queue,
     config: wgpu::SurfaceConfiguration,
     is_surface_configured: bool,
-    pub window: Arc<Window>,
 
     pub camera: Camera,
     pub scene: RenderScene,
     pub debug_lines: DebugLines,
+    pub gui: GuiOverlay,
 
     depth_texture: DepthTexture,
     /// Per render pass bind group
     per_pass_bind_group: wgpu::BindGroup,
     camera_buffer: wgpu::Buffer,
+
+    // needs to be last
+    pub window: Arc<Window>,
 }
 
 impl RenderState {
@@ -50,7 +54,7 @@ impl RenderState {
         })
         .await;
 
-        let surface = instance.create_surface(window.clone()).unwrap();
+        let surface = instance.create_surface(window.clone()).unwrap_throw();
 
         let adapter = instance
             .request_adapter(&RequestAdapterOptions {
@@ -130,6 +134,7 @@ impl RenderState {
 
         let scene = RenderScene::new(&device, &config, &per_pass_bind_group_layout);
         let debug_lines = DebugLines::new(&device, &config, &per_pass_bind_group_layout);
+        let gui = GuiOverlay::new(&device, &config);
 
         Ok(Self {
             surface,
@@ -141,6 +146,7 @@ impl RenderState {
             camera,
             scene,
             debug_lines,
+            gui,
             depth_texture,
             per_pass_bind_group,
             camera_buffer,
@@ -160,23 +166,32 @@ impl RenderState {
             // update camera
             self.camera.handle_resize(width, height);
         }
+
+        // gui text brush needs to know screen size
+        self.gui.handle_resize(width, height, &self.queue);
     }
 
     pub fn handle_window_event(&mut self, _event: &WindowEvent) {}
 
-    pub fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
-        self.queue.write_buffer(
-            &self.camera_buffer,
-            0,
-            bytemuck::cast_slice(&[self.camera.get_view_projection_matrix()]),
-        );
-
+    pub fn render<'render>(&mut self) -> Result<(), wgpu::SurfaceError> {
         self.window.request_redraw();
 
         // We can't render unless the surface is configured
         if !self.is_surface_configured {
             return Ok(());
         }
+
+        // preparation -----
+
+        self.queue.write_buffer(
+            &self.camera_buffer,
+            0,
+            bytemuck::cast_slice(&[self.camera.get_view_projection_matrix()]),
+        );
+
+        self.scene.prepare(&self.device, &self.queue);
+        self.debug_lines.prepare(&self.device, &self.queue);
+        self.gui.prepare(&self.device, &self.queue);
 
         let output = self.surface.get_current_texture()?;
         let view = output
@@ -187,38 +202,61 @@ impl RenderState {
             .create_command_encoder(&wgpu::CommandEncoderDescriptor {
                 label: Some("Render Encoder"),
             });
+
+        // rendering -----
         {
+            // 3d render pass
+            let mut render_pass: wgpu::RenderPass =
+                encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                    label: Some("3D render Pass"),
+                    color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                        view: &view,
+                        resolve_target: None,
+                        ops: wgpu::Operations {
+                            load: wgpu::LoadOp::Clear(wgpu::Color::WHITE),
+                            store: wgpu::StoreOp::Store,
+                        },
+                        depth_slice: None, // wgpu 26 feature
+                    })],
+                    depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                        view: &self.depth_texture.view,
+                        depth_ops: Some(wgpu::Operations {
+                            load: wgpu::LoadOp::Clear(1.0),
+                            store: wgpu::StoreOp::Store,
+                        }),
+                        stencil_ops: None,
+                    }),
+                    timestamp_writes: None,
+                    occlusion_query_set: None,
+                });
+
+            render_pass.set_bind_group(0, &self.per_pass_bind_group, &[]);
+
+            self.scene.render(&mut render_pass);
+            self.debug_lines.render(&mut render_pass);
+        }
+
+        {
+            // overlay render pass
             let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: Some("Render Pass"),
+                label: Some("overlay render Pass"),
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                     view: &view,
                     resolve_target: None,
                     ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
+                        load: wgpu::LoadOp::Load, // dont overwrite
                         store: wgpu::StoreOp::Store,
                     },
-                    depth_slice: None,
+                    depth_slice: None, // wgpu 26 feature
                 })],
-                depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
-                    view: &self.depth_texture.view,
-                    depth_ops: Some(wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(1.0),
-                        store: wgpu::StoreOp::Store,
-                    }),
-                    stencil_ops: None,
-                }),
+                depth_stencil_attachment: None, // no depth buffer
                 timestamp_writes: None,
                 occlusion_query_set: None,
             });
 
-            //render_pass.set_pipeline(&self.scene_render_pipeline);
-            render_pass.set_bind_group(0, &self.per_pass_bind_group, &[]);
-
-            self.scene.enable_and_render(&mut render_pass);
-            self.debug_lines.enable_and_render(&mut render_pass);
+            self.gui.render(&mut render_pass);
         }
 
-        // submit will accept anything that implements IntoIter
         self.queue.submit(std::iter::once(encoder.finish()));
         output.present();
 
@@ -257,13 +295,7 @@ impl DepthTexture {
     }
 }
 
-/// An object with it's own render pipeline/functionality
-trait Renderable {
-    fn get_render_pipeline(&self) -> &RenderPipeline;
-    fn render(&mut self, render_pass: &mut wgpu::RenderPass);
-
-    fn enable_and_render(&mut self, render_pass: &mut wgpu::RenderPass) {
-        render_pass.set_pipeline(self.get_render_pipeline());
-        self.render(render_pass);
-    }
+trait RenderPhase {
+    fn render<'a>(&'a self, render_pass: &mut wgpu::RenderPass<'a>);
+    fn prepare(&mut self, device: &wgpu::Device, queue: &wgpu::Queue);
 }

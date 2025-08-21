@@ -67,7 +67,7 @@ impl ApplicationHandler<RenderState> for App {
         let html_canvas_element = canvas.unchecked_into();
         window_attributes = window_attributes.with_canvas(Some(html_canvas_element));
 
-        let window = Arc::new(event_loop.create_window(window_attributes).unwrap());
+        let window = Arc::new(event_loop.create_window(window_attributes).unwrap_throw());
 
         // Run the future asynchronously and use the
         // proxy to send the results to the event loop

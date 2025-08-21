@@ -5,18 +5,24 @@ use std::{
 };
 
 use obj::{OBJMaterial, OBJMesh};
+use workspace_root::get_workspace_root;
 
-/// This build script re-parses obj assets into `RawMesh`es
+/// This build script re-parses obj models into `RawMesh`es
 ///
-/// To be specific, for every `xyz.obj` file in the assets directory, this script produces an `xyz.obj.rs` file in
+/// To be specific, for every `xyz.obj` file in the models directory, this script produces an `xyz.obj.rs` file in
 /// `OUT_DIR`, containing a value of the following type: `&[RawMesh]`, with one `RawMesh` per material in the file
 fn main() {
-    let assets_dir = "../../assets";
-    println!("cargo::rerun-if-changed={}", assets_dir);
+    // environment vars
+    println!(
+        "cargo::rustc-env=FONTS_DIR={}/assets/fonts",
+        get_workspace_root().display()
+    );
+
+    let models_dir = get_workspace_root().join("assets/models");
+    println!("cargo::rerun-if-changed={}", models_dir.display());
 
     let out_dir = PathBuf::from(std::env::var("OUT_DIR").unwrap());
-
-    for file in std::fs::read_dir(assets_dir).unwrap() {
+    for file in std::fs::read_dir(models_dir).unwrap() {
         if file.is_err() {
             continue;
         }

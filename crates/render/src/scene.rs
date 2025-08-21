@@ -5,13 +5,12 @@ use wgpu::{
     util::{BufferInitDescriptor, DeviceExt},
 };
 
-use crate::{DepthTexture, Renderable, load_obj, mesh, model::Model};
+use crate::{DepthTexture, RenderPhase, load_obj, mesh, model::Model};
 
 pub struct RenderScene {
     render_pipeline: RenderPipeline,
     scene_bind_group: wgpu::BindGroup,
-    sun_dir_buffer: wgpu::Buffer,
-
+    //sun_dir_buffer: wgpu::Buffer,
     earth: Model,
     car: Model,
     #[allow(unused)]
@@ -119,7 +118,6 @@ impl RenderScene {
         RenderScene {
             render_pipeline,
             scene_bind_group,
-            sun_dir_buffer,
 
             car: Model::from_raw("Car", load_obj!("car.obj"), device),
             earth: Model::from_raw("Test cube", load_obj!("earth.obj"), device),
@@ -127,12 +125,11 @@ impl RenderScene {
         }
     }
 }
-impl Renderable for RenderScene {
-    fn get_render_pipeline(&self) -> &wgpu::RenderPipeline {
-        &self.render_pipeline
-    }
+impl RenderPhase for RenderScene {
+    fn prepare(&mut self, _device: &wgpu::Device, _queue: &wgpu::Queue) {}
 
-    fn render(&mut self, render_pass: &mut wgpu::RenderPass) {
+    fn render<'a>(&'a self, render_pass: &mut wgpu::RenderPass<'a>) {
+        render_pass.set_pipeline(&self.render_pipeline);
         render_pass.set_bind_group(1, &self.scene_bind_group, &[]);
         self.car.render(render_pass);
         self.earth.render(render_pass);

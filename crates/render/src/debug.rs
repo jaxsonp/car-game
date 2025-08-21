@@ -3,7 +3,7 @@ use wgpu::{
     util::{BufferInitDescriptor, DeviceExt},
 };
 
-use crate::{DepthTexture, Renderable};
+use crate::{DepthTexture, RenderPhase};
 
 const RED: [f32; 3] = [1.0, 0.0, 0.0];
 const GREEN: [f32; 3] = [0.0, 1.0, 0.0];
@@ -84,14 +84,13 @@ impl DebugLines {
         }
     }
 }
-impl Renderable for DebugLines {
-    fn get_render_pipeline(&self) -> &wgpu::RenderPipeline {
-        &self.render_pipeline
-    }
-
-    fn render(&mut self, render_pass: &mut wgpu::RenderPass) {
+impl RenderPhase for DebugLines {
+    fn render<'a>(&'a self, render_pass: &mut wgpu::RenderPass<'a>) {
+        render_pass.set_pipeline(&self.render_pipeline);
         self.origin.render(render_pass);
     }
+
+    fn prepare(&mut self, _device: &wgpu::Device, _queue: &wgpu::Queue) {}
 }
 
 #[repr(C)]
