@@ -13,13 +13,14 @@ use crate::mtl::parse_mtl_file;
 #[derive(PartialEq, Eq, Hash, Clone, Copy)]
 struct VertIndexes {
     pos_index: usize,
-    // normal_index: usize,
+    normal_index: usize,
     // texcoord_index: usize,
 }
 
 #[derive(PartialEq)]
 pub struct Vert {
     pub pos: [f32; 3],
+    pub normal: [f32; 3],
 }
 type Face = [usize; 3];
 
@@ -72,7 +73,7 @@ pub fn parse_obj_file(input_filepath: PathBuf) -> io::Result<Vec<(OBJMaterial, O
     let input = BufReader::new(input_file);
 
     let mut raw_vert_positions: Vec<[f32; 3]> = Vec::new();
-    //let mut raw_vert_normals: Vec<[f32; 3]> = Vec::new();
+    let mut raw_vert_normals: Vec<[f32; 3]> = Vec::new();
     //let mut raw_vert_texcoords: Vec<[f32; 2]> = Vec::new();
 
     let mut material_table: HashMap<String, usize> = HashMap::new();
@@ -88,7 +89,8 @@ pub fn parse_obj_file(input_filepath: PathBuf) -> io::Result<Vec<(OBJMaterial, O
         let line = line?;
         let mut words = line.split_ascii_whitespace().map(String::from);
         match words.next().unwrap().as_str() {
-            "v" => raw_vert_positions.push(parse_vertex(words)),
+            "v" => raw_vert_positions.push(parse_float_triplet(words)),
+            "vn" => raw_vert_normals.push(parse_float_triplet(words)),
             "f" => current_mesh.faces.append(
                 &mut parse_faces(words)
                     .into_iter()
@@ -96,6 +98,7 @@ pub fn parse_obj_file(input_filepath: PathBuf) -> io::Result<Vec<(OBJMaterial, O
                         verts.map(|v: VertIndexes| {
                             let new_vert = Vert {
                                 pos: raw_vert_positions[v.pos_index],
+                                normal: raw_vert_normals[v.normal_index],
                             };
                             // checking if this vert already exists (yes I know it is O(n^2) shut up idc)
                             for (index, existing_vert) in current_mesh.verts.iter().enumerate() {
@@ -142,7 +145,7 @@ pub fn parse_obj_file(input_filepath: PathBuf) -> io::Result<Vec<(OBJMaterial, O
         .collect())
 }
 
-fn parse_vertex<I: Iterator<Item = String>>(mut words: I) -> [f32; 3] {
+fn parse_float_triplet<I: Iterator<Item = String>>(mut words: I) -> [f32; 3] {
     let x = words.next().unwrap().parse::<f32>().unwrap();
     let y = words.next().unwrap().parse::<f32>().unwrap();
     let z = words.next().unwrap().parse::<f32>().unwrap();
@@ -159,9 +162,12 @@ fn parse_faces<I: Iterator<Item = String>>(mut words: I) -> Vec<[VertIndexes; 3]
     let parse_vertex = |s: String| {
         let mut nums = s.splitn(3, '/');
         let vi = nums.next().unwrap().parse::<usize>().unwrap();
-        let _vti = nums.next().map(|s| s.parse::<usize>().unwrap());
-        let _vni = nums.next().map(|s| s.parse::<usize>().unwrap());
-        return VertIndexes { pos_index: vi - 1 };
+        let _vti = nums.next(); //.map(|s| s.parse::<usize>().unwrap());
+        let vni = nums.next().unwrap().parse::<usize>().unwrap();
+        return VertIndexes {
+            pos_index: vi - 1,
+            normal_index: vni - 1,
+        };
     };
     let mut first_and_last_vert = None;
     let mut parse_face = || {

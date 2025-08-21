@@ -16,13 +16,6 @@ fn main() {
 
     let out_dir = PathBuf::from(std::env::var("OUT_DIR").unwrap());
 
-    // if this is rust analyzer, create dummy file
-    if std::env::var("RA_RUNNING").is_ok_and(|val| val == "1") {
-        unsafe {
-            std::env::set_var("OUT_DIR", out_dir.as_os_str());
-        }
-    }
-
     for file in std::fs::read_dir(assets_dir).unwrap() {
         if file.is_err() {
             continue;
@@ -70,8 +63,9 @@ fn emit_parsed_obj(meshes: Vec<(OBJMaterial, OBJMesh)>, file_path: PathBuf) -> s
         for vert in mesh.verts {
             output.write(
                 format!(
-                    "\t\t\tVertex {{ pos: [{}f32, {}f32, {}f32] }},\n",
-                    vert.pos[0], vert.pos[1], vert.pos[2]
+                    "\t\t\tVertex {{ pos: [{}f32, {}f32, {}f32], normal: [{}f32, {}f32, {}f32] }},\n",
+                    vert.pos[0], vert.pos[1], vert.pos[2],
+                    vert.normal[0], vert.normal[1], vert.normal[2]
                 )
                 .as_bytes(),
             )?;

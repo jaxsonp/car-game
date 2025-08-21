@@ -213,10 +213,8 @@ impl RenderState {
 
             //render_pass.set_pipeline(&self.scene_render_pipeline);
             render_pass.set_bind_group(0, &self.per_pass_bind_group, &[]);
-            self.scene.enable_and_render(&mut render_pass);
 
-            //render_pass.set_pipeline(&self.debug_render_pipeline);
-            //render_pass.set_bind_group(0, &self.per_pass_bind_group, &[]);
+            self.scene.enable_and_render(&mut render_pass);
             self.debug_lines.enable_and_render(&mut render_pass);
         }
 
