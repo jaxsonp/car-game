@@ -1,21 +1,21 @@
 pub mod camera;
+mod debug;
 mod macros;
 mod material;
 mod mesh;
 mod model;
 mod scene;
-mod vert;
 
 use std::sync::Arc;
 
 use wasm_bindgen::prelude::*;
 use wgpu::{
     BindGroupDescriptor, BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingType,
-    BufferBindingType, BufferDescriptor, RequestAdapterOptions, ShaderStages,
+    BufferBindingType, BufferDescriptor, RenderPipeline, RequestAdapterOptions, ShaderStages,
 };
 use winit::{event::WindowEvent, window::Window};
 
-use crate::scene::RenderScene;
+use crate::{camera::Camera, debug::DebugLines, scene::RenderScene};
 
 /// Main rendering object
 pub struct RenderState {
@@ -26,12 +26,13 @@ pub struct RenderState {
     is_surface_configured: bool,
     pub window: Arc<Window>,
 
+    pub camera: Camera,
     pub scene: RenderScene,
-    scene_render_pipeline: wgpu::RenderPipeline,
-    depth_texture: DepthTexture,
+    pub debug_lines: DebugLines,
 
+    depth_texture: DepthTexture,
     /// Per render pass bind group
-    bind_group: wgpu::BindGroup,
+    per_pass_bind_group: wgpu::BindGroup,
     camera_buffer: wgpu::Buffer,
 }
 
@@ -64,8 +65,6 @@ impl RenderState {
             .request_device(&wgpu::DeviceDescriptor {
                 label: None,
                 required_features: wgpu::Features::empty(),
-                // WebGL doesn't support all of wgpu's features, so if
-                // we're building for the web we'll have to disable some.
                 required_limits: wgpu::Limits::downlevel_webgl2_defaults(),
                 memory_hints: Default::default(),
                 trace: wgpu::Trace::Off,
@@ -93,7 +92,7 @@ impl RenderState {
             desired_maximum_frame_latency: 2,
         };
 
-        let scene = RenderScene::new(&device, &config);
+        let camera = Camera::new([5.0, 1.0, 2.0], [0.0, 0.0, 0.0], [0.0, 1.0, 0.0], &config);
 
         let camera_buffer = device.create_buffer(&BufferDescriptor {
             label: Some("Camera Buffer"),
@@ -103,23 +102,24 @@ impl RenderState {
             mapped_at_creation: false,
         });
 
-        let bind_group_layout = device.create_bind_group_layout(&BindGroupLayoutDescriptor {
-            label: Some("scene bind group layout"),
-            entries: &[BindGroupLayoutEntry {
-                binding: 0,
-                visibility: ShaderStages::VERTEX,
-                ty: BindingType::Buffer {
-                    ty: BufferBindingType::Uniform,
-                    has_dynamic_offset: false,
-                    min_binding_size: None,
-                },
-                count: None,
-            }],
-        });
+        let per_pass_bind_group_layout =
+            device.create_bind_group_layout(&BindGroupLayoutDescriptor {
+                label: Some("per-pass bind group layout"),
+                entries: &[BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: ShaderStages::VERTEX,
+                    ty: BindingType::Buffer {
+                        ty: BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                }],
+            });
 
-        let bind_group = device.create_bind_group(&BindGroupDescriptor {
-            label: Some("scene bind group"),
-            layout: &bind_group_layout,
+        let per_pass_bind_group = device.create_bind_group(&BindGroupDescriptor {
+            label: Some("per-pass bind group"),
+            layout: &per_pass_bind_group_layout,
             entries: &[wgpu::BindGroupEntry {
                 binding: 0,
                 resource: camera_buffer.as_entire_binding(),
@@ -128,66 +128,8 @@ impl RenderState {
 
         let depth_texture = DepthTexture::new(&device, &config);
 
-        let scene_render_pipeline = {
-            let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-                label: Some("scene vertex shader"),
-                source: wgpu::ShaderSource::Wgsl(include_str!("shaders/scene.wgsl").into()),
-            });
-
-            let scene_render_pipeline_layout =
-                device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                    label: Some("scene render pipeline layout"),
-                    bind_group_layouts: &[
-                        &bind_group_layout,
-                        &mesh::Mesh::get_bind_group_layout(&device),
-                    ],
-                    push_constant_ranges: &[],
-                });
-
-            device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-                label: Some("render pipeline"),
-                layout: Some(&scene_render_pipeline_layout),
-                vertex: wgpu::VertexState {
-                    module: &shader,
-                    entry_point: None,
-                    buffers: &[vert::Vertex::BUFFER_LAYOUT],
-                    compilation_options: wgpu::PipelineCompilationOptions::default(),
-                },
-                fragment: Some(wgpu::FragmentState {
-                    module: &shader,
-                    entry_point: None,
-                    targets: &[Some(wgpu::ColorTargetState {
-                        format: config.format,
-                        blend: Some(wgpu::BlendState::REPLACE),
-                        write_mask: wgpu::ColorWrites::ALL,
-                    })],
-                    compilation_options: wgpu::PipelineCompilationOptions::default(),
-                }),
-                primitive: wgpu::PrimitiveState {
-                    topology: wgpu::PrimitiveTopology::TriangleList, // 1.
-                    strip_index_format: None,
-                    front_face: wgpu::FrontFace::Ccw,
-                    cull_mode: Some(wgpu::Face::Back),
-                    polygon_mode: wgpu::PolygonMode::Fill,
-                    unclipped_depth: false,
-                    conservative: false,
-                },
-                depth_stencil: Some(wgpu::DepthStencilState {
-                    format: DepthTexture::TEXTURE_FORMAT,
-                    depth_write_enabled: true,
-                    depth_compare: wgpu::CompareFunction::Less,
-                    stencil: wgpu::StencilState::default(),
-                    bias: wgpu::DepthBiasState::default(),
-                }),
-                multisample: wgpu::MultisampleState {
-                    count: 1,
-                    mask: !0,
-                    alpha_to_coverage_enabled: false,
-                },
-                multiview: None,
-                cache: None,
-            })
-        };
+        let scene = RenderScene::new(&device, &config, &per_pass_bind_group_layout);
+        let debug_lines = DebugLines::new(&device, &config, &per_pass_bind_group_layout);
 
         Ok(Self {
             surface,
@@ -196,10 +138,11 @@ impl RenderState {
             config,
             is_surface_configured: false,
             window,
+            camera,
             scene,
-            scene_render_pipeline,
+            debug_lines,
             depth_texture,
-            bind_group,
+            per_pass_bind_group,
             camera_buffer,
         })
     }
@@ -215,12 +158,7 @@ impl RenderState {
             self.depth_texture = DepthTexture::new(&self.device, &self.config);
 
             // update camera
-            self.scene.cam.handle_resize(width, height);
-            self.queue.write_buffer(
-                &self.camera_buffer,
-                0,
-                bytemuck::cast_slice(&[self.scene.cam.get_view_projection_matrix()]),
-            );
+            self.camera.handle_resize(width, height);
         }
     }
 
@@ -230,7 +168,7 @@ impl RenderState {
         self.queue.write_buffer(
             &self.camera_buffer,
             0,
-            bytemuck::cast_slice(&[self.scene.cam.get_view_projection_matrix()]),
+            bytemuck::cast_slice(&[self.camera.get_view_projection_matrix()]),
         );
 
         self.window.request_redraw();
@@ -273,10 +211,13 @@ impl RenderState {
                 occlusion_query_set: None,
             });
 
-            render_pass.set_pipeline(&self.scene_render_pipeline);
-            render_pass.set_bind_group(0, &self.bind_group, &[]);
+            //render_pass.set_pipeline(&self.scene_render_pipeline);
+            render_pass.set_bind_group(0, &self.per_pass_bind_group, &[]);
+            self.scene.enable_and_render(&mut render_pass);
 
-            self.scene.render(&mut render_pass);
+            //render_pass.set_pipeline(&self.debug_render_pipeline);
+            //render_pass.set_bind_group(0, &self.per_pass_bind_group, &[]);
+            self.debug_lines.enable_and_render(&mut render_pass);
         }
 
         // submit will accept anything that implements IntoIter
@@ -315,5 +256,16 @@ impl DepthTexture {
 
         let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
         Self { texture, view }
+    }
+}
+
+/// An object with it's own render pipeline/functionality
+trait Renderable {
+    fn get_render_pipeline(&self) -> &RenderPipeline;
+    fn render(&mut self, render_pass: &mut wgpu::RenderPass);
+
+    fn enable_and_render(&mut self, render_pass: &mut wgpu::RenderPass) {
+        render_pass.set_pipeline(self.get_render_pipeline());
+        self.render(render_pass);
     }
 }

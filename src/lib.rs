@@ -36,7 +36,7 @@ pub fn run_game() -> Result<(), wasm_bindgen::JsValue> {
 
 pub struct App {
     proxy: Option<winit::event_loop::EventLoopProxy<RenderState>>,
-    state: Option<RenderState>,
+    render_state: Option<RenderState>,
     debug_camera_controller: DebugCameraController,
 }
 
@@ -44,7 +44,7 @@ impl App {
     pub fn new(event_loop: &EventLoop<RenderState>) -> Self {
         let proxy = Some(event_loop.create_proxy());
         Self {
-            state: None,
+            render_state: None,
             proxy,
             debug_camera_controller: DebugCameraController::new(),
         }
@@ -93,7 +93,7 @@ impl ApplicationHandler<RenderState> for App {
             event.window.inner_size().width,
             event.window.inner_size().height,
         );
-        self.state = Some(event);
+        self.render_state = Some(event);
     }
 
     fn window_event(
@@ -102,17 +102,18 @@ impl ApplicationHandler<RenderState> for App {
         _window_id: winit::window::WindowId,
         event: WindowEvent,
     ) {
-        let state = match &mut self.state {
-            Some(state) => state,
+        let render_state = match &mut self.render_state {
+            Some(rs) => rs,
             None => return,
         };
 
         match event {
             WindowEvent::CloseRequested => event_loop.exit(),
-            WindowEvent::Resized(size) => state.handle_resize(size.width, size.height),
+            WindowEvent::Resized(size) => render_state.handle_resize(size.width, size.height),
             WindowEvent::RedrawRequested => {
-                self.debug_camera_controller.update(&mut state.scene.cam);
-                state.render().expect_throw("Render failed");
+                self.debug_camera_controller
+                    .update(&mut render_state.camera);
+                render_state.render().expect_throw("Render failed");
             }
             WindowEvent::KeyboardInput {
                 event:
@@ -135,6 +136,6 @@ impl ApplicationHandler<RenderState> for App {
             _ => {}
         }
         self.debug_camera_controller.handle_window_event(&event);
-        state.handle_window_event(&event);
+        render_state.handle_window_event(&event);
     }
 }
