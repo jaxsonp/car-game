@@ -1,0 +1,22 @@
+[package]
+name = "car-game"
+description = "A game about a car"
+authors = { workspace = true }
+version = { workspace = true }
+edition = { workspace = true }
+rust-version = { workspace = true }
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+cgmath = { workspace = true }
+console_error_panic_hook = "0.1.7"
+console_log = { version = "1", features = ["color"] }
+log = { workspace = true }
+render = { workspace = true }
+wasm-bindgen = { workspace = true }
+wasm-bindgen-futures = "0.4.30"
+web-sys = { version = "0.3.77", features = ["Window", "Document", "Element"] }
+wgpu = { workspace = true }
+winit = { workspace = true }
