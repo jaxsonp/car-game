@@ -1,7 +1,9 @@
 mod camera;
+mod framerate;
 
 use std::sync::Arc;
 
+use instant::Duration;
 use render::RenderState;
 use wasm_bindgen::prelude::*;
 use winit::{
@@ -12,7 +14,8 @@ use winit::{
     window::Window,
 };
 
-use crate::camera::{CameraController, DebugCameraController};
+use camera::{CameraController, DebugCameraController};
+use framerate::FramerateCounter;
 
 const CANVAS_ID: &str = "main-canvas";
 
@@ -37,15 +40,18 @@ pub fn run_game() -> Result<(), wasm_bindgen::JsValue> {
 pub struct App {
     proxy: Option<winit::event_loop::EventLoopProxy<RenderState>>,
     render_state: Option<RenderState>,
+    fps_counter: FramerateCounter,
     debug_camera_controller: DebugCameraController,
 }
 
 impl App {
     pub fn new(event_loop: &EventLoop<RenderState>) -> Self {
         let proxy = Some(event_loop.create_proxy());
+        let fps_counter = FramerateCounter::new(Duration::from_millis(500));
         Self {
             render_state: None,
             proxy,
+            fps_counter,
             debug_camera_controller: DebugCameraController::new(),
         }
     }
@@ -69,8 +75,7 @@ impl ApplicationHandler<RenderState> for App {
 
         let window = Arc::new(event_loop.create_window(window_attributes).unwrap_throw());
 
-        // Run the future asynchronously and use the
-        // proxy to send the results to the event loop
+        // using the event loop to create render state asyncronously and send it into the event loop
         if let Some(proxy) = self.proxy.take() {
             wasm_bindgen_futures::spawn_local(async move {
                 assert!(
@@ -78,7 +83,7 @@ impl ApplicationHandler<RenderState> for App {
                         .send_event(
                             RenderState::new(window)
                                 .await
-                                .expect("Unable to create canvas!!!")
+                                .expect("Unable to create render_state")
                         )
                         .is_ok()
                 )
@@ -111,8 +116,14 @@ impl ApplicationHandler<RenderState> for App {
             WindowEvent::CloseRequested => event_loop.exit(),
             WindowEvent::Resized(size) => render_state.handle_resize(size.width, size.height),
             WindowEvent::RedrawRequested => {
+                self.fps_counter.tick();
+                if self.fps_counter.updated {
+                    render_state.update_fps(self.fps_counter.get_fps());
+                }
+
                 self.debug_camera_controller
                     .update(&mut render_state.camera);
+
                 render_state.render().expect_throw("Render failed");
             }
             WindowEvent::KeyboardInput {

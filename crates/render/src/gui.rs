@@ -1,7 +1,7 @@
 use wgpu_text::{
     BrushBuilder, TextBrush,
     glyph_brush::{
-        BuiltInLineBreaker, HorizontalAlign, OwnedSection, OwnedText, Section, Text, VerticalAlign,
+        BuiltInLineBreaker, HorizontalAlign, OwnedSection, Section, Text, VerticalAlign,
         ab_glyph::FontRef,
     },
 };
@@ -26,13 +26,13 @@ impl GuiOverlay {
             .build(device, config.width, config.height, config.format);
 
         let top_left_text = TextBox::new(
-            (50.0, 50.0),
-            (200.0, 200.0),
+            (5.0, 5.0),
+            (400.0, 600.0),
             HorizontalAlign::Left,
             VerticalAlign::Top,
-            "Hello world",
+            "FPS",
             [0.0, 0.0, 0.0, 1.0],
-            24.0,
+            30.0,
         );
 
         return GuiOverlay {
@@ -87,7 +87,6 @@ impl TextBox {
         }
     }
 
-    /// Change the text, color, and/or the font size of a textbox
     pub fn change_text<S: Into<String>>(&mut self, new_text: S) {
         self.section.text[0].text = new_text.into();
     }

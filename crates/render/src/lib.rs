@@ -16,7 +16,10 @@ use wgpu::{
 };
 use winit::{event::WindowEvent, window::Window};
 
-use crate::{camera::Camera, debug::DebugLines, gui::GuiOverlay, scene::RenderScene};
+use camera::Camera;
+use debug::DebugLines;
+use gui::GuiOverlay;
+use scene::RenderScene;
 
 /// Main rendering object
 pub struct RenderState {
@@ -261,6 +264,12 @@ impl RenderState {
         output.present();
 
         Ok(())
+    }
+
+    pub fn update_fps(&mut self, new_fps: f32) {
+        self.gui
+            .top_left_text
+            .change_text(new_fps.to_string() + " FPS");
     }
 }
 
