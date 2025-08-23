@@ -1,0 +1,14 @@
+[package]
+name = "assets"
+description = "crate to manage asset storage/pre-loading"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+rapier3d = { workspace = true }
+
+[build-dependencies]
+obj = { path = "../obj" }
+workspace_root = "0.1.2"

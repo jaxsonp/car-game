@@ -10,10 +10,18 @@ edition = "2024"
 rust-version = "1.89"
 
 [workspace.dependencies]
-cgmath = "0.18"
+assets = { path = "./crates/assets" }
+nalgebra = "0.34"
 log = "0.4"
-obj = { path = "./crates/obj" }
-render = { path = "./crates/render" }
+rapier3d = { version = "0.28.0", features = ["enhanced-determinism"]}
+sim = { path = "./crates/sim" }
 wasm-bindgen = "0.2.100"
 wgpu = { version = "26.0.1", features = ["webgl", "webgpu"] }
 winit = { version = "0.30", features = ["android-native-activity"] }
+
+# always optimize rapier
+[profile.dev.package.rapier3d]
+opt-level = 3
+
+[profile.release]
+codegen-units = 1

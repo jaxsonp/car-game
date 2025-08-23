@@ -1,4 +1,4 @@
-use cgmath::{Deg, Matrix4, Point3, Rad, Vector3};
+use nalgebra::{Matrix4, Perspective3, Point3, Vector3};
 use wgpu::SurfaceConfiguration;
 
 pub struct Camera {
@@ -6,10 +6,10 @@ pub struct Camera {
     pub target: Point3<f32>,
     pub up: Vector3<f32>,
     pub aspect_ratio: f32,
-    pub fovy: Rad<f32>,
+    pub fovy: f32,
 }
 impl Camera {
-    const DEFAULT_FOVY: Deg<f32> = Deg(70.0);
+    const DEFAULT_FOVY: f32 = 70.0f32.to_radians();
     const CLIP_NEAR: f32 = 0.1;
     const CLIP_FAR: f32 = 100.0;
 
@@ -29,15 +29,16 @@ impl Camera {
     }
 
     pub fn get_view_projection_matrix(&self) -> CameraUniformMatrix {
-        let view_matrix = Matrix4::look_at_rh(self.eye, self.target, self.up);
-        let proj_matrix = cgmath::perspective(
-            self.fovy,
+        let view_matrix = Matrix4::look_at_rh(&self.eye, &self.target, &self.up);
+        let proj_matrix = Perspective3::new(
             self.aspect_ratio,
+            self.fovy,
             Self::CLIP_NEAR,
             Self::CLIP_FAR,
-        );
+        )
+        .to_homogeneous();
         return CameraUniformMatrix {
-            view_proj: (OPENGL_TO_WGPU_MATRIX * proj_matrix * view_matrix).into(),
+            view_proj: (proj_matrix * view_matrix).into(),
         };
     }
 
@@ -45,14 +46,6 @@ impl Camera {
         self.aspect_ratio = (width as f32) / (height as f32);
     }
 }
-
-#[rustfmt::skip]
-const OPENGL_TO_WGPU_MATRIX: cgmath::Matrix4<f32> = cgmath::Matrix4::from_cols(
-    cgmath::Vector4::new(1.0, 0.0, 0.0, 0.0),
-    cgmath::Vector4::new(0.0, 1.0, 0.0, 0.0),
-    cgmath::Vector4::new(0.0, 0.0, 0.5, 0.0),
-    cgmath::Vector4::new(0.0, 0.0, 0.5, 1.0),
-);
 
 /// Needed this format to pass into buffer
 #[repr(C)]

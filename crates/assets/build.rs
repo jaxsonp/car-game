@@ -12,17 +12,16 @@ use workspace_root::get_workspace_root;
 /// To be specific, for every `xyz.obj` file in the models directory, this script produces an `xyz.obj.rs` file in
 /// `OUT_DIR`, containing a value of the following type: `&[RawMesh]`, with one `RawMesh` per material in the file
 fn main() {
-    // environment vars
-    println!(
-        "cargo::rustc-env=FONTS_DIR={}/assets/fonts",
-        get_workspace_root().display()
-    );
+    let assets_dir = get_workspace_root().join("assets");
+    let fonts_dir = assets_dir.join("fonts");
+    let meshes_dir = assets_dir.join("meshes");
 
-    let models_dir = get_workspace_root().join("assets/models");
-    println!("cargo::rerun-if-changed={}", models_dir.display());
+    println!("cargo::rustc-env=FONTS_DIR={}", fonts_dir.display());
+
+    println!("cargo::rerun-if-changed={}", assets_dir.display());
 
     let out_dir = PathBuf::from(std::env::var("OUT_DIR").unwrap());
-    for file in std::fs::read_dir(models_dir).unwrap() {
+    for file in std::fs::read_dir(meshes_dir).unwrap() {
         if file.is_err() {
             continue;
         }
@@ -40,6 +39,12 @@ fn main() {
         let output_path = out_dir
             .join(file_path.file_name().unwrap())
             .with_extension("obj.rs");
+
+        println!(
+            "cargo::warning=Preloading OBJ file \'{}\' (output: \'{}\')",
+            file_path.display(),
+            output_path.display(),
+        );
 
         match obj::parse_obj_file(file_path.clone()) {
             Ok(meshes) => {
@@ -69,7 +74,7 @@ fn emit_parsed_obj(meshes: Vec<(OBJMaterial, OBJMesh)>, file_path: PathBuf) -> s
         for vert in mesh.verts {
             output.write(
                 format!(
-                    "\t\t\tVertex {{ pos: [{}f32, {}f32, {}f32], normal: [{}f32, {}f32, {}f32] }},\n",
+                    "\t\t\tRawVertex {{ pos: [{}f32, {}f32, {}f32], normal: [{}f32, {}f32, {}f32] }},\n",
                     vert.pos[0], vert.pos[1], vert.pos[2],
                     vert.normal[0], vert.normal[1], vert.normal[2]
                 )
@@ -84,7 +89,7 @@ fn emit_parsed_obj(meshes: Vec<(OBJMaterial, OBJMesh)>, file_path: PathBuf) -> s
         output.write(b"\t\t],\n")?;
         output.write(
             format!(
-                "\t\tmaterial: Material {{ color: [{}f32, {}f32, {}f32, 1f32] }},\n",
+                "\t\tmaterial: RawMaterial {{ color: [{}f32, {}f32, {}f32] }},\n",
                 material.diffuse_color[0], material.diffuse_color[1], material.diffuse_color[2]
             )
             .as_bytes(),

@@ -7,15 +7,12 @@ rust-version.workspace = true
 
 [dependencies]
 anyhow = "1.0"
+assets = { workspace = true }
 bytemuck = { version = "1.16", features = [ "derive" ] }
-cgmath = { workspace = true }
 log = { workspace = true }
-obj = { workspace = true }
+nalgebra = { workspace = true }
+sim = { workspace = true }
 wasm-bindgen = { workspace = true }
 wgpu = { workspace = true }
 wgpu_text = "26.0.0"
-winit = { workspace = true }
-
-[build-dependencies]
-obj = { workspace = true }
-workspace_root = "0.1.2"
+winit = { workspace = true } 

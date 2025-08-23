@@ -5,6 +5,7 @@ use std::sync::Arc;
 
 use instant::Duration;
 use render::RenderState;
+use sim::GameSimulation;
 use wasm_bindgen::prelude::*;
 use winit::{
     application::ApplicationHandler,
@@ -40,6 +41,7 @@ pub fn run_game() -> Result<(), wasm_bindgen::JsValue> {
 pub struct App {
     proxy: Option<winit::event_loop::EventLoopProxy<RenderState>>,
     render_state: Option<RenderState>,
+    sim: GameSimulation,
     fps_counter: FramerateCounter,
     debug_camera_controller: DebugCameraController,
 }
@@ -49,8 +51,9 @@ impl App {
         let proxy = Some(event_loop.create_proxy());
         let fps_counter = FramerateCounter::new(Duration::from_millis(500));
         Self {
-            render_state: None,
             proxy,
+            render_state: None,
+            sim: GameSimulation::new(),
             fps_counter,
             debug_camera_controller: DebugCameraController::new(),
         }
@@ -116,14 +119,17 @@ impl ApplicationHandler<RenderState> for App {
             WindowEvent::CloseRequested => event_loop.exit(),
             WindowEvent::Resized(size) => render_state.handle_resize(size.width, size.height),
             WindowEvent::RedrawRequested => {
-                self.fps_counter.tick();
+                let t_delta = self.fps_counter.tick();
                 if self.fps_counter.updated {
                     render_state.update_fps(self.fps_counter.get_fps());
                 }
 
-                self.debug_camera_controller
-                    .update(&mut render_state.camera);
+                let snapshot = self.sim.step(t_delta);
 
+                self.debug_camera_controller
+                    .update(t_delta, &mut render_state.scene.camera);
+
+                render_state.update(snapshot);
                 render_state.render().expect_throw("Render failed");
             }
             WindowEvent::KeyboardInput {

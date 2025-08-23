@@ -1,5 +1,5 @@
 
-WASM_OUTDIR = $(PWD)/web/pkg/
+WASM_OUTDIR = $(CURDIR)/web/pkg/
 
 .PHONY: build build-release clean
 

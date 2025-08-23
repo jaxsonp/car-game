@@ -1,9 +1,10 @@
 // shader to render the diffuse material in the scene
 // Bind groups:
-// 0: Once per render
+// 0: Once per scene render
 //   0: camera matrix
-// 1: Once per scene render
-//   0: sun direction
+// 1: Once per model
+//   0: pos
+//   1: rotation
 // 2: Once per mesh/material
 //   0: mesh diffuse color
 
@@ -31,11 +32,10 @@ fn vert_main(
 
 // frag shader ---------------------------------------
 
-@group(1) @binding(0)
-var<uniform> sun_direction: vec4<f32>;
 @group(2) @binding(0)
 var<uniform> diffuse_color: vec4<f32>;
 
+const sun_direction = vec3<f32>(1.0, -2.0, 1.0);
 const ambient_shade_multiplier: f32 = 0.5;
 const ambient_shade_threshold: f32 = 0.45;
 
@@ -45,7 +45,7 @@ fn frag_main(in: VertexOutput) -> @location(0) vec4<f32> {
     var color = diffuse_color.rgb;
 
     let normal = normalize(in.normal);
-    let angle_from_sun = acos(dot(normal, normalize(sun_direction.xyz)));
+    let angle_from_sun = acos(dot(normal, normalize(sun_direction)));
     if (angle_from_sun < (3.141592 * ambient_shade_threshold)) {
         // in ambient shade
         color *= ambient_shade_multiplier; 

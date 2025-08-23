@@ -1,7 +1,8 @@
 // shader to render debug lines
 // Bind groups:
-// 0: Once per render
+// 0: Once per scene render
 //   0: camera matrix
+// 1: Once per model
 
 // vert shader ---------------------------------------
 

@@ -1,3 +1,4 @@
+use assets::fonts::FONT_MONO;
 use wgpu_text::{
     BrushBuilder, TextBrush,
     glyph_brush::{
@@ -5,10 +6,6 @@ use wgpu_text::{
         ab_glyph::FontRef,
     },
 };
-
-use crate::{RenderPhase, load_font};
-
-const MONO_FONT: &'static [u8] = load_font!("ShareTechMono/ShareTechMono.ttf");
 
 /// Wraps all the ugly egui boilerplate.
 ///
@@ -20,7 +17,7 @@ pub struct GuiOverlay {
 
 impl GuiOverlay {
     pub fn new(device: &wgpu::Device, config: &wgpu::SurfaceConfiguration) -> GuiOverlay {
-        let brush = BrushBuilder::using_font_bytes(MONO_FONT)
+        let brush = BrushBuilder::using_font_bytes(FONT_MONO)
             .unwrap()
             .draw_cache_position_tolerance(0.7) // tolerate liberal reuse of gylphs
             .build(device, config.width, config.height, config.format);
@@ -44,17 +41,16 @@ impl GuiOverlay {
     pub fn handle_resize(&mut self, width: u32, height: u32, queue: &wgpu::Queue) {
         self.brush.resize_view(width as f32, height as f32, queue);
     }
-}
-impl RenderPhase for GuiOverlay {
-    fn render<'a>(&'a self, render_pass: &mut wgpu::RenderPass<'a>) {
-        self.brush.draw(render_pass);
-    }
 
-    fn prepare(&mut self, device: &wgpu::Device, queue: &wgpu::Queue) {
+    pub fn prepare(&mut self, device: &wgpu::Device, queue: &wgpu::Queue) {
         let sections = [&self.top_left_text.section];
         self.brush
             .queue(device, queue, sections)
             .expect("Failed during preparation of gui overlay");
+    }
+
+    pub fn render<'a>(&'a self, render_pass: &mut wgpu::RenderPass<'a>) {
+        self.brush.draw(render_pass);
     }
 }
 

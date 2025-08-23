@@ -1,14 +1,10 @@
 pub mod camera;
-mod debug;
 mod gui;
-mod macros;
-mod material;
-mod mesh;
-mod model;
 mod scene;
 
 use std::sync::Arc;
 
+use sim::RenderSnapshot;
 use wasm_bindgen::prelude::*;
 use wgpu::{
     BindGroupDescriptor, BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingType,
@@ -17,9 +13,8 @@ use wgpu::{
 use winit::{event::WindowEvent, window::Window};
 
 use camera::Camera;
-use debug::DebugLines;
 use gui::GuiOverlay;
-use scene::RenderScene;
+use scene::Scene;
 
 /// Main rendering object
 pub struct RenderState {
@@ -29,15 +24,10 @@ pub struct RenderState {
     config: wgpu::SurfaceConfiguration,
     is_surface_configured: bool,
 
-    pub camera: Camera,
-    pub scene: RenderScene,
-    pub debug_lines: DebugLines,
+    pub scene: Scene,
     pub gui: GuiOverlay,
 
     depth_texture: DepthTexture,
-    /// Per render pass bind group
-    per_pass_bind_group: wgpu::BindGroup,
-    camera_buffer: wgpu::Buffer,
 
     // needs to be last
     pub window: Arc<Window>,
@@ -99,44 +89,9 @@ impl RenderState {
             desired_maximum_frame_latency: 2,
         };
 
-        let camera = Camera::new([5.0, 1.0, 2.0], [0.0, 0.0, 0.0], [0.0, 1.0, 0.0], &config);
-
-        let camera_buffer = device.create_buffer(&BufferDescriptor {
-            label: Some("Camera Buffer"),
-            //contents: bytemuck::cast_slice(&[camera_uniform]),
-            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-            size: size_of::<camera::CameraUniformMatrix>() as u64,
-            mapped_at_creation: false,
-        });
-
-        let per_pass_bind_group_layout =
-            device.create_bind_group_layout(&BindGroupLayoutDescriptor {
-                label: Some("per-pass bind group layout"),
-                entries: &[BindGroupLayoutEntry {
-                    binding: 0,
-                    visibility: ShaderStages::VERTEX,
-                    ty: BindingType::Buffer {
-                        ty: BufferBindingType::Uniform,
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                    count: None,
-                }],
-            });
-
-        let per_pass_bind_group = device.create_bind_group(&BindGroupDescriptor {
-            label: Some("per-pass bind group"),
-            layout: &per_pass_bind_group_layout,
-            entries: &[wgpu::BindGroupEntry {
-                binding: 0,
-                resource: camera_buffer.as_entire_binding(),
-            }],
-        });
-
         let depth_texture = DepthTexture::new(&device, &config);
 
-        let scene = RenderScene::new(&device, &config, &per_pass_bind_group_layout);
-        let debug_lines = DebugLines::new(&device, &config, &per_pass_bind_group_layout);
+        let scene = Scene::new(&device, &config);
         let gui = GuiOverlay::new(&device, &config);
 
         Ok(Self {
@@ -146,13 +101,9 @@ impl RenderState {
             config,
             is_surface_configured: false,
             window,
-            camera,
             scene,
-            debug_lines,
             gui,
             depth_texture,
-            per_pass_bind_group,
-            camera_buffer,
         })
     }
 
@@ -167,7 +118,7 @@ impl RenderState {
             self.depth_texture = DepthTexture::new(&self.device, &self.config);
 
             // update camera
-            self.camera.handle_resize(width, height);
+            self.scene.camera.handle_resize(width, height);
         }
 
         // gui text brush needs to know screen size
@@ -176,7 +127,12 @@ impl RenderState {
 
     pub fn handle_window_event(&mut self, _event: &WindowEvent) {}
 
-    pub fn render<'render>(&mut self) -> Result<(), wgpu::SurfaceError> {
+    pub fn update(&mut self, snapshot: RenderSnapshot) {
+        //self.scene.car.pos = snapshot.car_pos;
+        //self.scene.car.rotation = snapshot.car_rotation;
+    }
+
+    pub fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
         self.window.request_redraw();
 
         // We can't render unless the surface is configured
@@ -186,15 +142,8 @@ impl RenderState {
 
         // preparation -----
 
-        self.queue.write_buffer(
-            &self.camera_buffer,
-            0,
-            bytemuck::cast_slice(&[self.camera.get_view_projection_matrix()]),
-        );
-
-        self.scene.prepare(&self.device, &self.queue);
-        self.debug_lines.prepare(&self.device, &self.queue);
         self.gui.prepare(&self.device, &self.queue);
+        self.scene.prepare(&self.queue);
 
         let output = self.surface.get_current_texture()?;
         let view = output
@@ -233,13 +182,10 @@ impl RenderState {
                     occlusion_query_set: None,
                 });
 
-            render_pass.set_bind_group(0, &self.per_pass_bind_group, &[]);
-
             self.scene.render(&mut render_pass);
-            self.debug_lines.render(&mut render_pass);
         }
 
-        {
+        /*{
             // overlay render pass
             let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("overlay render Pass"),
@@ -258,7 +204,7 @@ impl RenderState {
             });
 
             self.gui.render(&mut render_pass);
-        }
+        }*/
 
         self.queue.submit(std::iter::once(encoder.finish()));
         output.present();
@@ -302,9 +248,4 @@ impl DepthTexture {
         let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
         Self { texture, view }
     }
-}
-
-trait RenderPhase {
-    fn render<'a>(&'a self, render_pass: &mut wgpu::RenderPass<'a>);
-    fn prepare(&mut self, device: &wgpu::Device, queue: &wgpu::Queue);
 }

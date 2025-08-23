@@ -1,4 +1,4 @@
-use cgmath::{Deg, Quaternion, Rotation, Rotation3, Vector3};
+use nalgebra::{Rotation, Unit, Vector3};
 use winit::{
     event::{KeyEvent, WindowEvent},
     keyboard::{KeyCode, PhysicalKey},
@@ -8,7 +8,7 @@ use render::camera::Camera;
 
 pub trait CameraController {
     fn handle_window_event(&mut self, event: &WindowEvent);
-    fn update(&mut self, cam: &mut Camera);
+    fn update(&mut self, t_delta: f32, cam: &mut Camera);
 }
 
 /// A simple stand-in camera controller for flying around the scene creative mode style
@@ -26,8 +26,10 @@ pub struct DebugCameraController {
 }
 
 impl DebugCameraController {
-    const MOVE_SPEED: f32 = 0.15;
-    const TURN_SPEED: Deg<f32> = Deg(1.2);
+    /// units per sec
+    const MOVE_SPEED: f32 = 9.5;
+    /// rads per sec
+    const TURN_SPEED: f32 = 80f32.to_radians();
 
     pub fn new() -> Self {
         Self {
@@ -75,44 +77,47 @@ impl CameraController for DebugCameraController {
         }
     }
 
-    fn update(&mut self, camera: &mut Camera) {
-        use cgmath::InnerSpace;
-        let mut facing = (camera.target - camera.eye).normalize();
+    fn update(&mut self, t_delta: f32, camera: &mut Camera) {
+        let turn_speed = Self::TURN_SPEED * t_delta;
+        let move_speed = Self::MOVE_SPEED * t_delta;
+
+        let mut facing = Unit::new_normalize(camera.target - camera.eye);
+        let up = Vector3::y_axis();
 
         if self.left_pressed {
-            facing = Quaternion::from_angle_y(Self::TURN_SPEED).rotate_vector(facing);
+            facing = Rotation::from_axis_angle(&up, turn_speed) * facing;
         }
         if self.right_pressed {
-            facing = Quaternion::from_angle_y(-Self::TURN_SPEED).rotate_vector(facing);
+            facing = Rotation::from_axis_angle(&up, -turn_speed) * facing;
         }
-        let right = facing.cross(Vector3::unit_y()).normalize();
+        let right = Unit::new_normalize(facing.cross(&up));
         if self.up_pressed {
-            facing = Quaternion::from_axis_angle(right, Self::TURN_SPEED).rotate_vector(facing);
+            facing = Rotation::from_axis_angle(&right, turn_speed) * facing;
         }
         if self.down_pressed {
-            facing = Quaternion::from_axis_angle(right, -Self::TURN_SPEED).rotate_vector(facing);
+            facing = Rotation::from_axis_angle(&right, -turn_speed) * facing;
         }
 
-        let horizon = Vector3::new(facing.x, 0.0, facing.z);
+        let horizon = Unit::new_normalize(Vector3::new(facing.x, 0.0, facing.z));
         if self.w_pressed {
-            camera.eye += horizon * Self::MOVE_SPEED;
+            camera.eye += horizon.into_inner() * move_speed;
         }
         if self.a_pressed {
-            camera.eye -= right * Self::MOVE_SPEED;
+            camera.eye -= right.into_inner() * move_speed;
         }
         if self.s_pressed {
-            camera.eye -= horizon * Self::MOVE_SPEED;
+            camera.eye -= horizon.into_inner() * move_speed;
         }
         if self.d_pressed {
-            camera.eye += right * Self::MOVE_SPEED;
+            camera.eye += right.into_inner() * move_speed;
         }
         if self.space_pressed {
-            camera.eye += Vector3::unit_y() * Self::MOVE_SPEED;
+            camera.eye += Vector3::y() * move_speed;
         }
         if self.shift_pressed {
-            camera.eye -= Vector3::unit_y() * Self::MOVE_SPEED;
+            camera.eye -= Vector3::y() * move_speed;
         }
 
-        camera.target = camera.eye + facing;
+        camera.target = camera.eye + facing.into_inner();
     }
 }

@@ -1,10 +1,9 @@
+use assets::{RawMaterial, RawMesh, RawVertex};
 use wgpu::{
     BindGroupDescriptor, BindGroupLayout, BindGroupLayoutDescriptor, BindGroupLayoutEntry,
     BindingType, BufferBindingType, BufferUsages, ShaderStages,
     util::{BufferInitDescriptor, DeviceExt},
 };
-
-use crate::material::Material;
 
 pub struct Mesh {
     pub vertex_buffer: wgpu::Buffer,
@@ -18,9 +17,10 @@ pub struct Mesh {
 
 impl Mesh {
     pub fn from_raw(raw: RawMesh, device: &wgpu::Device) -> Mesh {
+        let verts: Vec<Vertex> = raw.verts.iter().map(|raw| (*raw).into()).collect();
         let vertex_buffer = device.create_buffer_init(&BufferInitDescriptor {
             label: Some("mesh vertex buffer"),
-            contents: bytemuck::cast_slice(raw.verts),
+            contents: bytemuck::cast_slice(verts.as_slice()),
             usage: BufferUsages::VERTEX,
         });
 
@@ -30,9 +30,10 @@ impl Mesh {
             usage: BufferUsages::INDEX,
         });
 
+        let material: Material = raw.material.into();
         let material_color_buffer = device.create_buffer_init(&BufferInitDescriptor {
             label: Some("mesh material color buffer"),
-            contents: bytemuck::cast_slice(&raw.material.color),
+            contents: bytemuck::cast_slice(&material.color),
             usage: BufferUsages::UNIFORM.union(BufferUsages::COPY_DST),
         });
 
@@ -71,14 +72,6 @@ impl Mesh {
     }
 }
 
-#[derive(Clone, Copy)]
-/// Represents the raw data loaded in by the build script
-pub struct RawMesh {
-    pub material: Material,
-    pub verts: &'static [Vertex],
-    pub indices: &'static [u16],
-}
-
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct Vertex {
@@ -92,11 +85,25 @@ impl Vertex {
         attributes: &wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x3],
     };
 }
-impl From<([f32; 3], [f32; 3])> for Vertex {
-    fn from(raw: ([f32; 3], [f32; 3])) -> Self {
+impl From<RawVertex> for Vertex {
+    fn from(raw: RawVertex) -> Self {
         Vertex {
-            pos: raw.0,
-            normal: raw.1,
+            pos: raw.pos,
+            normal: raw.normal,
+        }
+    }
+}
+
+#[repr(C)]
+#[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
+pub struct Material {
+    /// RGB
+    pub color: [f32; 4],
+}
+impl From<RawMaterial> for Material {
+    fn from(raw: RawMaterial) -> Self {
+        Material {
+            color: [raw.color[0], raw.color[1], raw.color[2], 1.0],
         }
     }
 }
