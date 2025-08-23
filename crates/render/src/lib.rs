@@ -4,15 +4,12 @@ mod scene;
 
 use std::sync::Arc;
 
+use nalgebra::{Point3, Rotation3, Vector3};
 use sim::RenderSnapshot;
 use wasm_bindgen::prelude::*;
-use wgpu::{
-    BindGroupDescriptor, BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingType,
-    BufferBindingType, BufferDescriptor, RequestAdapterOptions, ShaderStages,
-};
+use wgpu::RequestAdapterOptions;
 use winit::{event::WindowEvent, window::Window};
 
-use camera::Camera;
 use gui::GuiOverlay;
 use scene::Scene;
 
@@ -127,9 +124,12 @@ impl RenderState {
 
     pub fn handle_window_event(&mut self, _event: &WindowEvent) {}
 
-    pub fn update(&mut self, snapshot: RenderSnapshot) {
-        //self.scene.car.pos = snapshot.car_pos;
-        //self.scene.car.rotation = snapshot.car_rotation;
+    pub fn update(&mut self, _snapshot: RenderSnapshot) {
+        self.scene.car.update_pos(Point3::new(5.0, 1.0, -1.5));
+        self.scene.car.update_rotation(Rotation3::from_axis_angle(
+            &Vector3::x_axis(),
+            20f32.to_radians(),
+        ));
     }
 
     pub fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
@@ -185,7 +185,7 @@ impl RenderState {
             self.scene.render(&mut render_pass);
         }
 
-        /*{
+        if false {
             // overlay render pass
             let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("overlay render Pass"),
@@ -204,7 +204,7 @@ impl RenderState {
             });
 
             self.gui.render(&mut render_pass);
-        }*/
+        }
 
         self.queue.submit(std::iter::once(encoder.finish()));
         output.present();

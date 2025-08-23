@@ -36,7 +36,7 @@ impl Car {
     );
 }
 impl GameObject for Car {
-    const render_meshes: &'static [RawMesh] = &[]; //load_obj_mesh!("car.obj");
+    const render_meshes: &'static [RawMesh] = load_obj_mesh!("car.obj");
 
     const debug_lines: &'static [RawDebugLine] = &debug_lines! {
         // top of toppart

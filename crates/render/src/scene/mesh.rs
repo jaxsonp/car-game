@@ -5,6 +5,7 @@ use wgpu::{
     util::{BufferInitDescriptor, DeviceExt},
 };
 
+/// A single mesh with a single homogenous material
 pub struct Mesh {
     pub vertex_buffer: wgpu::Buffer,
     pub index_buffer: wgpu::Buffer,

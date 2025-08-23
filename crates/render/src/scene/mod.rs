@@ -2,20 +2,16 @@ pub mod debug;
 pub mod mesh;
 mod model;
 
-use assets::GameObject;
-use nalgebra::Vector3;
 use wgpu::{
     BindGroupDescriptor, BindGroupEntry, BindGroupLayoutDescriptor, BindGroupLayoutEntry,
-    BindingType, BufferBindingType, BufferDescriptor, BufferUsages, Queue, RenderPipeline,
-    ShaderStages,
-    util::{BufferInitDescriptor, DeviceExt},
+    BindingType, BufferBindingType, BufferDescriptor, Queue, RenderPipeline, ShaderStages,
 };
 
 use crate::{
     DepthTexture,
     camera::{Camera, CameraUniformMatrix},
 };
-use debug::{DebugLineGroup, DebugLineVertex};
+use debug::DebugLineVertex;
 use model::Model;
 
 pub struct Scene {
@@ -28,7 +24,6 @@ pub struct Scene {
     pub camera: Camera,
     pub floor: Model,
     pub car: Model,
-    static_debug_lines: Vec<DebugLineGroup>,
 }
 
 impl Scene {
@@ -126,7 +121,7 @@ impl Scene {
         let debug_render_pipeline = {
             let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
                 label: Some("scene debug shader"),
-                source: wgpu::ShaderSource::Wgsl(include_str!("../shaders/debug.wgsl").into()),
+                source: wgpu::ShaderSource::Wgsl(include_str!("../shaders/debuglines.wgsl").into()),
             });
 
             let render_pipeline_layout =
@@ -193,20 +188,17 @@ impl Scene {
             camera,
             car: Model::from_object::<assets::objects::Car>("Car", device),
             floor: Model::from_object::<assets::objects::Floor>("Floor", device),
-            static_debug_lines: vec![
-                DebugLineGroup::from_raw(device, assets::objects::Floor::debug_lines),
-                // TODO make this not static
-                DebugLineGroup::from_raw(device, assets::objects::Car::debug_lines),
-            ],
         }
     }
 
-    pub fn prepare(&self, queue: &Queue) {
+    pub fn prepare(&mut self, queue: &Queue) {
         queue.write_buffer(
             &self.camera_buffer,
             0,
             bytemuck::cast_slice(&[self.camera.get_view_projection_matrix()]),
         );
+        self.car.prepare(queue);
+        self.floor.prepare(queue);
     }
 
     pub fn render<'a>(&'a self, render_pass: &mut wgpu::RenderPass<'a>) {
@@ -217,9 +209,6 @@ impl Scene {
         self.floor.render(render_pass);
 
         render_pass.set_pipeline(&self.debug_render_pipeline);
-        for line_group in self.static_debug_lines.iter() {
-            line_group.render(render_pass);
-        }
         self.car.render_debug_lines(render_pass);
         self.floor.render_debug_lines(render_pass);
     }

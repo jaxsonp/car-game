@@ -3,21 +3,24 @@ use nalgebra::{Point3, Rotation3};
 use wgpu::{
     BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout, BindGroupLayoutDescriptor,
     BindGroupLayoutEntry, BindingType, Buffer, BufferBindingType, BufferDescriptor, BufferUsages,
-    RenderPass, ShaderStages,
-    util::{BufferInitDescriptor, DeviceExt},
+    Queue, RenderPass, ShaderStages,
 };
 
 use super::mesh::Mesh;
 use crate::scene::debug::DebugLineGroup;
 
-// TODO remove this
-#[allow(dead_code)]
+/// Represents an object made up of meshes with materials with a position and rotation to be rendered.
+/// Also contains associated debug lines
 pub struct Model {
-    name: String,
+    _name: String,
     meshes: Vec<Mesh>,
     debug_lines: DebugLineGroup,
     bind_group: BindGroup,
+
+    // saving pos and rotation
+    new_pos: Option<Point3<f32>>,
     pos_buffer: Buffer,
+    new_rotation: Option<Rotation3<f32>>,
     rotation_buffer: Buffer,
 }
 impl Model {
@@ -29,14 +32,15 @@ impl Model {
         let debug_lines = DebugLineGroup::from_raw(device, GO::debug_lines);
 
         let pos_buffer = device.create_buffer(&BufferDescriptor {
-            label: Some("Model position buffer"),
-            size: 4 * size_of::<f32>() as u64,
+            label: Some("model transform buffer"),
+            size: size_of::<PosUniform>() as u64,
             usage: BufferUsages::COPY_DST.union(BufferUsages::UNIFORM),
             mapped_at_creation: false,
         });
+
         let rotation_buffer = device.create_buffer(&BufferDescriptor {
-            label: Some("Model rotation buffer"),
-            size: 12 * size_of::<f32>() as u64,
+            label: Some("model rotation buffer"),
+            size: size_of::<RotationUniform>() as u64,
             usage: BufferUsages::COPY_DST.union(BufferUsages::UNIFORM),
             mapped_at_creation: false,
         });
@@ -57,31 +61,28 @@ impl Model {
             ],
         });
 
-        #[cfg(debug_assertions)]
-        {
-            log::info!(
-                "Loaded model \"{}\" ({} verts, {} faces)",
-                name,
-                GO::render_meshes
-                    .iter()
-                    .map(|m| m.verts.len())
-                    .sum::<usize>(),
-                GO::render_meshes
-                    .iter()
-                    .map(|m| m.indices.len())
-                    .sum::<usize>()
-                    / 3
-            );
-        }
+        log::info!(
+            "Loaded meshes for model \"{}\" ({} verts, {} faces)",
+            name,
+            GO::render_meshes
+                .iter()
+                .map(|m| m.verts.len())
+                .sum::<usize>(),
+            GO::render_meshes
+                .iter()
+                .map(|m| m.indices.len())
+                .sum::<usize>()
+                / 3
+        );
         Model {
-            name: name.into(),
+            _name: name.into(),
             meshes,
             debug_lines,
             bind_group,
+            new_pos: Some(Point3::new(0.0, 0.0, 0.0)),
             pos_buffer,
+            new_rotation: Some(Rotation3::identity()),
             rotation_buffer,
-            //pos: Point3::new(0.0, 0.0, 0.0),
-            //rotation: Rotation3::identity(),
         }
     }
 
@@ -113,6 +114,19 @@ impl Model {
         })
     }
 
+    pub fn prepare(&mut self, queue: &Queue) {
+        if let Some(pos) = self.new_pos {
+            let uniform: PosUniform = pos.into();
+            queue.write_buffer(&self.pos_buffer, 0, bytemuck::cast_slice(&uniform.val));
+            self.new_pos = None;
+        }
+        if let Some(rot) = self.new_rotation {
+            let uniform: RotationUniform = rot.into();
+            queue.write_buffer(&self.rotation_buffer, 0, bytemuck::cast_slice(&uniform.val));
+            self.new_rotation = None;
+        }
+    }
+
     pub fn render(&self, render_pass: &mut RenderPass) {
         render_pass.set_bind_group(1, &self.bind_group, &[]);
         for mesh in self.meshes.iter() {
@@ -127,8 +141,45 @@ impl Model {
         render_pass.set_bind_group(1, &self.bind_group, &[]);
         self.debug_lines.render(render_pass);
     }
+
+    pub fn update_pos(&mut self, new_pos: Point3<f32>) {
+        self.new_pos = Some(new_pos);
+    }
+
+    pub fn update_rotation(&mut self, new_rotation: Rotation3<f32>) {
+        self.new_rotation = Some(new_rotation);
+    }
 }
 
 #[repr(C)]
 #[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
-struct RotationUniform([f32; 9]);
+struct PosUniform {
+    val: [f32; 4],
+}
+impl From<Point3<f32>> for PosUniform {
+    fn from(p: Point3<f32>) -> Self {
+        PosUniform {
+            val: [p.x, p.y, p.z, 0.0],
+        }
+    }
+}
+
+#[repr(C)]
+#[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
+struct RotationUniform {
+    val: [f32; 16],
+}
+impl From<Rotation3<f32>> for RotationUniform {
+    #[rustfmt::skip]
+    fn from(rot: Rotation3<f32>) -> Self {
+        let m = rot.matrix();
+        RotationUniform {
+            val: [
+                m[0], m[3], m[6], 0.0,
+                m[1], m[4], m[7], 0.0,
+                m[2], m[5], m[8], 0.0,
+                0.0,  0.0,  0.0,  1.0
+            ]
+        }
+    }
+}
