@@ -4,7 +4,6 @@ mod scene;
 
 use std::sync::Arc;
 
-use nalgebra::{Point3, Rotation3, Vector3};
 use sim::RenderSnapshot;
 use wasm_bindgen::prelude::*;
 use wgpu::RequestAdapterOptions;
@@ -124,12 +123,12 @@ impl RenderState {
 
     pub fn handle_window_event(&mut self, _event: &WindowEvent) {}
 
-    pub fn update(&mut self, _snapshot: RenderSnapshot) {
-        /*self.scene.car.update_pos(Point3::new(5.0, 1.0, -1.5));
-        self.scene.car.update_rotation(Rotation3::from_axis_angle(
-            &Vector3::x_axis(),
-            20f32.to_radians(),
-        ));*/
+    pub fn update(&mut self, snapshot: RenderSnapshot) {
+        self.scene.car.update_transform(snapshot.car_transform);
+        self.gui.top_left_text.change_text(format!(
+            "car transform:\n{:?}",
+            snapshot.car_transform.to_homogeneous()
+        ));
     }
 
     pub fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
@@ -185,7 +184,7 @@ impl RenderState {
             self.scene.render(&mut render_pass);
         }
 
-        if false {
+        if true {
             // overlay render pass
             let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("overlay render Pass"),
@@ -212,11 +211,7 @@ impl RenderState {
         Ok(())
     }
 
-    pub fn update_fps(&mut self, new_fps: f32) {
-        self.gui
-            .top_left_text
-            .change_text(new_fps.to_string() + " FPS");
-    }
+    pub fn update_fps(&mut self, new_fps: f32) {}
 }
 
 struct DepthTexture {

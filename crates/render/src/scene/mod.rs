@@ -187,7 +187,7 @@ impl Scene {
 
             camera,
             car: Model::from_object::<assets::objects::Car>("Car", device),
-            floor: Model::from_object::<assets::objects::Floor>("Floor", device),
+            floor: Model::from_object::<assets::objects::TestFloor>("Floor", device),
         }
     }
 

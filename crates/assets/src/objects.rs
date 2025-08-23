@@ -1,3 +1,4 @@
+use nalgebra::{DMatrix, Vector3};
 use rapier3d::prelude::*;
 
 use crate::*;
@@ -88,8 +89,8 @@ impl GameObject for Car {
     }
 }
 
-pub struct Floor {}
-impl GameObject for Floor {
+pub struct TestFloor {}
+impl GameObject for TestFloor {
     const render_meshes: &'static [RawMesh] = load_obj_mesh!("floor.obj");
 
     #[rustfmt::skip]
@@ -110,6 +111,6 @@ impl GameObject for Floor {
     ];
 
     fn get_collision_box() -> ColliderBuilder {
-        todo!()
+        ColliderBuilder::heightfield(DMatrix::zeros(2, 2), Vector3::new(40.0, 1.0, 40.0))
     }
 }

@@ -1,5 +1,5 @@
 use assets::GameObject;
-use nalgebra::{Point3, Rotation3, Vector3};
+use nalgebra::{Isometry3, Vector3};
 use rapier3d::prelude::*;
 
 const GRAVITY: f32 = 9.81;
@@ -7,6 +7,8 @@ const GRAVITY: f32 = 9.81;
 pub struct GameSimulation {
     rigid_bodies: RigidBodySet,
     colliders: ColliderSet,
+
+    car_rbody_handle: RigidBodyHandle,
 
     physics_pipeline: PhysicsPipeline,
     integration_params: IntegrationParameters,
@@ -25,16 +27,17 @@ impl GameSimulation {
 
         let floor_rbody = RigidBodyBuilder::new(RigidBodyType::Fixed).build();
         let floor_rbody_handle = rigid_bodies.insert(floor_rbody);
-        let floor_collider = ColliderBuilder::heightfield(
-            DMatrix::repeat(2, 2, 0.0),
-            Vector3::new(40.0f32, 1.0, 40.0),
-        )
-        .translation(Vector::new(-20.0, 0.0, -20.0))
-        .build();
+        let floor_collider = assets::objects::TestFloor::get_collision_box();
         colliders.insert_with_parent(floor_collider, floor_rbody_handle, &mut rigid_bodies);
 
-        let car_rbody = RigidBodyBuilder::new(RigidBodyType::Dynamic)
+        let car_rbody = RigidBodyBuilder::dynamic()
             .additional_mass(100.0)
+            .linvel(Vector3::new(-1.0, 15.0, -1.0))
+            .angvel(
+                Rotation::from_axis_angle(&Vector3::x_axis(), 90f32.to_radians())
+                    .vector()
+                    .into(),
+            )
             .build();
         let car_rbody_handle = rigid_bodies.insert(car_rbody);
         let car_collider = assets::objects::Car::get_collision_box().build();
@@ -55,6 +58,9 @@ impl GameSimulation {
         GameSimulation {
             rigid_bodies,
             colliders,
+
+            car_rbody_handle,
+
             physics_pipeline,
             integration_params,
             island_manager,
@@ -84,15 +90,15 @@ impl GameSimulation {
             &(),
         );
 
+        let car_rb = &mut self.rigid_bodies[self.car_rbody_handle];
+
         RenderSnapshot {
-            car_pos: Point3::new(5.0, 5.0, 5.0),
-            car_rotation: Rotation3::identity(),
+            car_transform: *car_rb.position(),
         }
     }
 }
 
 #[derive(Clone, Copy)]
 pub struct RenderSnapshot {
-    pub car_pos: Point3<f32>,
-    pub car_rotation: Rotation3<f32>,
+    pub car_transform: Isometry3<f32>,
 }

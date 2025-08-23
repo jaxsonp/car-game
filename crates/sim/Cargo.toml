@@ -7,5 +7,6 @@ edition.workspace = true
 rust-version.workspace = true
 
 [dependencies]
-rapier3d = { workspace = true }
 assets = { workspace = true }
+rapier3d = { workspace = true }
+log = { workspace = true }

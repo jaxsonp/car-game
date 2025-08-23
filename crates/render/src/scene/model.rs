@@ -1,5 +1,5 @@
 use assets::GameObject;
-use nalgebra::{Isometry3, Matrix4, Point3, Rotation3};
+use nalgebra::Isometry3;
 use wgpu::{
     BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout, BindGroupLayoutDescriptor,
     BindGroupLayoutEntry, BindingType, Buffer, BufferBindingType, BufferDescriptor, BufferUsages,
@@ -119,19 +119,6 @@ impl Model {
 
 #[repr(C)]
 #[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
-struct PosUniform {
-    val: [f32; 4],
-}
-impl From<Point3<f32>> for PosUniform {
-    fn from(p: Point3<f32>) -> Self {
-        PosUniform {
-            val: [p.x, p.y, p.z, 0.0],
-        }
-    }
-}
-
-#[repr(C)]
-#[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
 struct TransformUniform {
     val: [f32; 16],
 }
@@ -141,10 +128,10 @@ impl From<Isometry3<f32>> for TransformUniform {
         let m = transform.to_homogeneous();
         TransformUniform {
             val: [
-                m[0], m[4], m[8], m[12],
-                m[1], m[5], m[9], m[13],
-                m[2], m[6], m[10], m[14],
-                m[3], m[7], m[11], m[15],
+                m[0], m[1], m[2], m[3],
+                m[4], m[5], m[6], m[7],
+                m[8], m[9], m[10], m[11],
+                m[12], m[13], m[14], m[15],
             ],
         }
     }
