@@ -1,5 +1,5 @@
 use assets::GameObject;
-use nalgebra::{Point3, Rotation3};
+use nalgebra::{Isometry3, Matrix4, Point3, Rotation3};
 use wgpu::{
     BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout, BindGroupLayoutDescriptor,
     BindGroupLayoutEntry, BindingType, Buffer, BufferBindingType, BufferDescriptor, BufferUsages,
@@ -18,10 +18,8 @@ pub struct Model {
     bind_group: BindGroup,
 
     // saving pos and rotation
-    new_pos: Option<Point3<f32>>,
-    pos_buffer: Buffer,
-    new_rotation: Option<Rotation3<f32>>,
-    rotation_buffer: Buffer,
+    new_transform: Option<Isometry3<f32>>,
+    transform_buffer: Buffer,
 }
 impl Model {
     pub fn from_object<GO: GameObject>(name: &str, device: &wgpu::Device) -> Model {
@@ -31,16 +29,9 @@ impl Model {
             .collect();
         let debug_lines = DebugLineGroup::from_raw(device, GO::debug_lines);
 
-        let pos_buffer = device.create_buffer(&BufferDescriptor {
+        let transform_buffer = device.create_buffer(&BufferDescriptor {
             label: Some("model transform buffer"),
-            size: size_of::<PosUniform>() as u64,
-            usage: BufferUsages::COPY_DST.union(BufferUsages::UNIFORM),
-            mapped_at_creation: false,
-        });
-
-        let rotation_buffer = device.create_buffer(&BufferDescriptor {
-            label: Some("model rotation buffer"),
-            size: size_of::<RotationUniform>() as u64,
+            size: size_of::<TransformUniform>() as u64,
             usage: BufferUsages::COPY_DST.union(BufferUsages::UNIFORM),
             mapped_at_creation: false,
         });
@@ -49,16 +40,10 @@ impl Model {
         let bind_group = device.create_bind_group(&BindGroupDescriptor {
             label: Some("model bind group"),
             layout: &bind_group_layout,
-            entries: &[
-                BindGroupEntry {
-                    binding: 0,
-                    resource: pos_buffer.as_entire_binding(),
-                },
-                BindGroupEntry {
-                    binding: 1,
-                    resource: rotation_buffer.as_entire_binding(),
-                },
-            ],
+            entries: &[BindGroupEntry {
+                binding: 0,
+                resource: transform_buffer.as_entire_binding(),
+            }],
         });
 
         log::info!(
@@ -79,51 +64,36 @@ impl Model {
             meshes,
             debug_lines,
             bind_group,
-            new_pos: Some(Point3::new(0.0, 0.0, 0.0)),
-            pos_buffer,
-            new_rotation: Some(Rotation3::identity()),
-            rotation_buffer,
+            new_transform: Some(Isometry3::identity()),
+            transform_buffer,
         }
     }
 
     pub fn get_bind_group_layout(device: &wgpu::Device) -> BindGroupLayout {
         device.create_bind_group_layout(&BindGroupLayoutDescriptor {
             label: Some("model bind group layout"),
-            entries: &[
-                BindGroupLayoutEntry {
-                    binding: 0,
-                    visibility: ShaderStages::VERTEX,
-                    ty: BindingType::Buffer {
-                        ty: BufferBindingType::Uniform,
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                    count: None,
+            entries: &[BindGroupLayoutEntry {
+                binding: 0,
+                visibility: ShaderStages::VERTEX,
+                ty: BindingType::Buffer {
+                    ty: BufferBindingType::Uniform,
+                    has_dynamic_offset: false,
+                    min_binding_size: None,
                 },
-                BindGroupLayoutEntry {
-                    binding: 1,
-                    visibility: ShaderStages::VERTEX,
-                    ty: BindingType::Buffer {
-                        ty: BufferBindingType::Uniform,
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                    count: None,
-                },
-            ],
+                count: None,
+            }],
         })
     }
 
     pub fn prepare(&mut self, queue: &Queue) {
-        if let Some(pos) = self.new_pos {
-            let uniform: PosUniform = pos.into();
-            queue.write_buffer(&self.pos_buffer, 0, bytemuck::cast_slice(&uniform.val));
-            self.new_pos = None;
-        }
-        if let Some(rot) = self.new_rotation {
-            let uniform: RotationUniform = rot.into();
-            queue.write_buffer(&self.rotation_buffer, 0, bytemuck::cast_slice(&uniform.val));
-            self.new_rotation = None;
+        if let Some(transform) = self.new_transform {
+            let uniform: TransformUniform = transform.into();
+            queue.write_buffer(
+                &self.transform_buffer,
+                0,
+                bytemuck::cast_slice(&uniform.val),
+            );
+            self.new_transform = None;
         }
     }
 
@@ -142,12 +112,8 @@ impl Model {
         self.debug_lines.render(render_pass);
     }
 
-    pub fn update_pos(&mut self, new_pos: Point3<f32>) {
-        self.new_pos = Some(new_pos);
-    }
-
-    pub fn update_rotation(&mut self, new_rotation: Rotation3<f32>) {
-        self.new_rotation = Some(new_rotation);
+    pub fn update_transform(&mut self, transform: Isometry3<f32>) {
+        self.new_transform = Some(transform);
     }
 }
 
@@ -166,20 +132,20 @@ impl From<Point3<f32>> for PosUniform {
 
 #[repr(C)]
 #[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
-struct RotationUniform {
+struct TransformUniform {
     val: [f32; 16],
 }
-impl From<Rotation3<f32>> for RotationUniform {
+impl From<Isometry3<f32>> for TransformUniform {
     #[rustfmt::skip]
-    fn from(rot: Rotation3<f32>) -> Self {
-        let m = rot.matrix();
-        RotationUniform {
+    fn from(transform: Isometry3<f32>) -> Self {
+        let m = transform.to_homogeneous();
+        TransformUniform {
             val: [
-                m[0], m[3], m[6], 0.0,
-                m[1], m[4], m[7], 0.0,
-                m[2], m[5], m[8], 0.0,
-                0.0,  0.0,  0.0,  1.0
-            ]
+                m[0], m[4], m[8], m[12],
+                m[1], m[5], m[9], m[13],
+                m[2], m[6], m[10], m[14],
+                m[3], m[7], m[11], m[15],
+            ],
         }
     }
 }

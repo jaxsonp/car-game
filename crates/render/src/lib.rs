@@ -125,11 +125,11 @@ impl RenderState {
     pub fn handle_window_event(&mut self, _event: &WindowEvent) {}
 
     pub fn update(&mut self, _snapshot: RenderSnapshot) {
-        self.scene.car.update_pos(Point3::new(5.0, 1.0, -1.5));
+        /*self.scene.car.update_pos(Point3::new(5.0, 1.0, -1.5));
         self.scene.car.update_rotation(Rotation3::from_axis_angle(
             &Vector3::x_axis(),
             20f32.to_radians(),
-        ));
+        ));*/
     }
 
     pub fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
