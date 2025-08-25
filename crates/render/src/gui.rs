@@ -12,7 +12,8 @@ use wgpu_text::{
 /// To use, create `TextBox`es in `GuiOverlay.text_boxes`
 pub struct GuiOverlay {
     brush: TextBrush<FontRef<'static>>,
-    pub top_left_text: TextBox,
+    pub fps_text: TextBox,
+    pub debug_text: TextBox,
 }
 
 impl GuiOverlay {
@@ -22,19 +23,29 @@ impl GuiOverlay {
             .draw_cache_position_tolerance(0.7) // tolerate liberal reuse of gylphs
             .build(device, config.width, config.height, config.format);
 
-        let top_left_text = TextBox::new(
+        let fps_text = TextBox::new(
             (5.0, 5.0),
-            (400.0, 600.0),
+            (150.0, 35.0),
             HorizontalAlign::Left,
             VerticalAlign::Top,
             "FPS",
+            [0.0, 0.0, 0.0, 1.0],
+            35.0,
+        );
+        let debug_text = TextBox::new(
+            (5.0, 40.0),
+            (400.0, 600.0),
+            HorizontalAlign::Left,
+            VerticalAlign::Top,
+            "",
             [0.0, 0.0, 0.0, 1.0],
             30.0,
         );
 
         return GuiOverlay {
             brush,
-            top_left_text,
+            debug_text,
+            fps_text,
         };
     }
 
@@ -43,7 +54,7 @@ impl GuiOverlay {
     }
 
     pub fn prepare(&mut self, device: &wgpu::Device, queue: &wgpu::Queue) {
-        let sections = [&self.top_left_text.section];
+        let sections = [&self.debug_text.section, &self.fps_text.section];
         self.brush
             .queue(device, queue, sections)
             .expect("Failed during preparation of gui overlay");

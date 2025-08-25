@@ -123,15 +123,7 @@ impl RenderState {
 
     pub fn handle_window_event(&mut self, _event: &WindowEvent) {}
 
-    pub fn update(&mut self, snapshot: RenderSnapshot) {
-        self.scene.car.update_transform(snapshot.car_transform);
-        self.gui.top_left_text.change_text(format!(
-            "car transform:\n{:?}",
-            snapshot.car_transform.to_homogeneous()
-        ));
-    }
-
-    pub fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
+    pub fn render(&mut self, snapshot: RenderSnapshot) -> Result<(), wgpu::SurfaceError> {
         self.window.request_redraw();
 
         // We can't render unless the surface is configured
@@ -141,8 +133,12 @@ impl RenderState {
 
         // preparation -----
 
+        if let Some(text) = snapshot.debug_string.as_ref() {
+            self.gui.debug_text.change_text(text);
+        }
+
         self.gui.prepare(&self.device, &self.queue);
-        self.scene.prepare(&self.queue);
+        self.scene.prepare(&self.queue, &snapshot);
 
         let output = self.surface.get_current_texture()?;
         let view = output
@@ -210,8 +206,6 @@ impl RenderState {
 
         Ok(())
     }
-
-    pub fn update_fps(&mut self, new_fps: f32) {}
 }
 
 struct DepthTexture {

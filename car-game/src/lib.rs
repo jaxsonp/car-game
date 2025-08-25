@@ -119,18 +119,20 @@ impl ApplicationHandler<RenderState> for App {
             WindowEvent::CloseRequested => event_loop.exit(),
             WindowEvent::Resized(size) => render_state.handle_resize(size.width, size.height),
             WindowEvent::RedrawRequested => {
+                // where the magic happens
+
                 let t_delta = self.fps_counter.tick();
-                if self.fps_counter.updated {
-                    render_state.update_fps(self.fps_counter.get_fps());
-                }
 
                 let snapshot = self.sim.step(t_delta);
 
                 self.debug_camera_controller
                     .update(t_delta, &mut render_state.scene.camera);
 
-                render_state.update(snapshot);
-                render_state.render().expect_throw("Render failed");
+                render_state
+                    .gui
+                    .fps_text
+                    .change_text(format!("FPS: {}", self.fps_counter.fps));
+                render_state.render(snapshot).expect_throw("Render failed");
             }
             WindowEvent::KeyboardInput {
                 event:

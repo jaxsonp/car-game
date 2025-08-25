@@ -1,8 +1,15 @@
 use assets::GameObject;
-use nalgebra::{Isometry3, Vector3};
+use nalgebra::{Isometry3, Point3, Vector3};
 use rapier3d::prelude::*;
 
 const GRAVITY: f32 = 9.81;
+
+pub struct RenderSnapshot {
+    pub car_transform: Isometry3<f32>,
+    /// How far below offset each wheel is (front-driver, front-pass, rear-driver, rear-pass)
+    pub wheel_transforms: [Isometry3<f32>; 4],
+    pub debug_string: Option<String>,
+}
 
 pub struct GameSimulation {
     rigid_bodies: RigidBodySet,
@@ -22,25 +29,22 @@ pub struct GameSimulation {
 
 impl GameSimulation {
     pub fn new() -> GameSimulation {
+        use assets::objects;
+
         let mut rigid_bodies = RigidBodySet::new();
         let mut colliders = ColliderSet::new();
 
         let floor_rbody = RigidBodyBuilder::new(RigidBodyType::Fixed).build();
         let floor_rbody_handle = rigid_bodies.insert(floor_rbody);
-        let floor_collider = assets::objects::TestFloor::get_collision_box();
+        let floor_collider = objects::TestFloor::get_collision_box();
         colliders.insert_with_parent(floor_collider, floor_rbody_handle, &mut rigid_bodies);
 
         let car_rbody = RigidBodyBuilder::dynamic()
-            .additional_mass(100.0)
-            .linvel(Vector3::new(-1.0, 15.0, -1.0))
-            .angvel(
-                Rotation::from_axis_angle(&Vector3::x_axis(), 90f32.to_radians())
-                    .vector()
-                    .into(),
-            )
+            .additional_mass(objects::Car::MASS)
+            .linvel(Vector3::new(0.0, 8.0, 0.0))
             .build();
         let car_rbody_handle = rigid_bodies.insert(car_rbody);
-        let car_collider = assets::objects::Car::get_collision_box().build();
+        let car_collider = objects::Car::get_collision_box().build();
         colliders.insert_with_parent(car_collider, car_rbody_handle, &mut rigid_bodies);
 
         let physics_pipeline = PhysicsPipeline::new();
@@ -51,9 +55,6 @@ impl GameSimulation {
         let impulse_joints = ImpulseJointSet::new();
         let multibody_joints = MultibodyJointSet::new();
         let ccd_solver = CCDSolver::new();
-        //let query_pipeline = QueryPipeline::new();
-        //let physics_hooks = ();
-        //let event_handler = ();
 
         GameSimulation {
             rigid_bodies,
@@ -73,6 +74,7 @@ impl GameSimulation {
     }
 
     pub fn step(&mut self, t_delta: f32) -> RenderSnapshot {
+        // applying time delta
         self.integration_params.dt = t_delta;
 
         self.physics_pipeline.step(
@@ -90,15 +92,70 @@ impl GameSimulation {
             &(),
         );
 
-        let car_rb = &mut self.rigid_bodies[self.car_rbody_handle];
+        let wheel_transforms = self.do_car_physics();
 
         RenderSnapshot {
-            car_transform: *car_rb.position(),
+            car_transform: *self.rigid_bodies[self.car_rbody_handle].position(),
+            debug_string: Some("test".to_owned()),
+            wheel_transforms,
         }
     }
-}
 
-#[derive(Clone, Copy)]
-pub struct RenderSnapshot {
-    pub car_transform: Isometry3<f32>,
+    fn do_car_physics(&mut self) -> [Isometry3<f32>; 4] {
+        // doin car physics
+        use assets::objects::Car;
+
+        let car_transform = *self.rigid_bodies[self.car_rbody_handle].position();
+        let car_up_direction = (car_transform.rotation * Vector3::y()).normalize();
+
+        // cast rays to see if tires are touching the ground
+        let hits = {
+            let query_pipeline = self.broad_phase.as_query_pipeline(
+                self.narrow_phase.query_dispatcher(),
+                &self.rigid_bodies,
+                &self.colliders,
+                QueryFilter::new().exclude_rigid_body(self.car_rbody_handle),
+            );
+            Car::WHEEL_OFFSETS.map(|wheel_offset| {
+                let ray_origin = car_transform * Point3::from(wheel_offset);
+                let ray = Ray::new(ray_origin, -car_up_direction);
+                if let Some((_collider, hit_dist)) =
+                    query_pipeline.cast_ray(&ray, Car::SUSPENSION_MAX + Car::WHEEL_RADIUS, false)
+                {
+                    (ray, Some(hit_dist))
+                } else {
+                    (ray, None)
+                }
+            })
+        };
+
+        let car_rb = &mut self.rigid_bodies[self.car_rbody_handle];
+        car_rb.wake_up(false);
+
+        // calculate and apply forces
+        let wheel_positions = hits.map(|(ray, maybe_hit)| {
+            if let Some(hit_dist) = maybe_hit {
+                // how far the spring is compressed
+                let mut compression = ((Car::SUSPENSION_MAX + Car::WHEEL_RADIUS) - hit_dist)
+                    / (Car::SUSPENSION_MAX + Car::WHEEL_RADIUS);
+                // apply curve
+                compression = Car::suspension_compression_curve(compression);
+
+                // velocity of the suspension
+                let spring_velocity = car_rb.velocity_at_point(&ray.origin).dot(&ray.dir);
+
+                let spring_impulse = compression * Car::SUSPENSION_STIFFNESS;
+                let damper_impulse = spring_velocity * Car::SUSPENSION_DAMPER;
+                let suspension_impulse = car_up_direction * (spring_impulse + damper_impulse);
+
+                car_rb.apply_impulse_at_point(suspension_impulse, ray.origin, false);
+
+                ray.point_at(hit_dist - Car::WHEEL_RADIUS)
+            } else {
+                ray.point_at(Car::SUSPENSION_MAX)
+            }
+        });
+
+        wheel_positions.map(|pos| Isometry3::from_parts(pos.into(), *car_rb.rotation()))
+    }
 }

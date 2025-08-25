@@ -17,12 +17,16 @@ pub struct Model {
     debug_lines: DebugLineGroup,
     bind_group: BindGroup,
 
-    // saving pos and rotation
+    static_transform: Option<Isometry3<f32>>,
     new_transform: Option<Isometry3<f32>>,
     transform_buffer: Buffer,
 }
 impl Model {
-    pub fn from_object<GO: GameObject>(name: &str, device: &wgpu::Device) -> Model {
+    pub fn from_object<GO: GameObject>(
+        name: &str,
+        device: &wgpu::Device,
+        static_transform: Option<Isometry3<f32>>,
+    ) -> Model {
         let meshes: Vec<Mesh> = GO::render_meshes
             .into_iter()
             .map(|raw| Mesh::from_raw(*raw, device))
@@ -64,6 +68,7 @@ impl Model {
             meshes,
             debug_lines,
             bind_group,
+            static_transform,
             new_transform: Some(Isometry3::identity()),
             transform_buffer,
         }
@@ -86,7 +91,10 @@ impl Model {
     }
 
     pub fn prepare(&mut self, queue: &Queue) {
-        if let Some(transform) = self.new_transform {
+        if let Some(mut transform) = self.new_transform {
+            if let Some(static_transform) = self.static_transform {
+                transform *= static_transform;
+            };
             let uniform: TransformUniform = transform.into();
             queue.write_buffer(
                 &self.transform_buffer,
@@ -112,7 +120,7 @@ impl Model {
         self.debug_lines.render(render_pass);
     }
 
-    pub fn update_transform(&mut self, transform: Isometry3<f32>) {
+    pub fn set_transform(&mut self, transform: Isometry3<f32>) {
         self.new_transform = Some(transform);
     }
 }

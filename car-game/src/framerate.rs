@@ -6,8 +6,7 @@ pub struct FramerateCounter {
     period_start: Instant,
     period_frame_count: u32,
     period_duration: f32, // in seconds
-    fps: f32,
-    pub updated: bool,
+    pub fps: f32,
 }
 
 impl FramerateCounter {
@@ -18,7 +17,6 @@ impl FramerateCounter {
             period_frame_count: 0,
             period_duration: rate.as_secs_f32(),
             fps: 0.0,
-            updated: false,
         }
     }
 
@@ -30,7 +28,6 @@ impl FramerateCounter {
         if (now - self.period_start).as_secs_f32() > self.period_duration {
             // period over
             self.fps = (self.period_frame_count as f32) / self.period_duration;
-            self.updated = true;
 
             self.period_frame_count = 0;
             self.period_start = now;
@@ -39,10 +36,5 @@ impl FramerateCounter {
         let delta = (now - self.last_frame).as_secs_f32();
         self.last_frame = now;
         return delta;
-    }
-
-    pub fn get_fps(&mut self) -> f32 {
-        self.updated = false;
-        return self.fps;
     }
 }

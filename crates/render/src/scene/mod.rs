@@ -2,6 +2,8 @@ pub mod debug;
 pub mod mesh;
 mod model;
 
+use nalgebra::{Isometry3, Rotation3, Translation, Vector3};
+use sim::RenderSnapshot;
 use wgpu::{
     BindGroupDescriptor, BindGroupEntry, BindGroupLayoutDescriptor, BindGroupLayoutEntry,
     BindingType, BufferBindingType, BufferDescriptor, Queue, RenderPipeline, ShaderStages,
@@ -24,11 +26,12 @@ pub struct Scene {
     pub camera: Camera,
     pub floor: Model,
     pub car: Model,
+    pub wheels: [Model; 4],
 }
 
 impl Scene {
     pub fn new(device: &wgpu::Device, config: &wgpu::SurfaceConfiguration) -> Scene {
-        let camera = Camera::new([5.0, 1.0, 2.0], [0.0, 0.0, 0.0], [0.0, 1.0, 0.0], &config);
+        let camera = Camera::new([8.0, 4.0, 4.0], [0.0, 0.0, 0.0], [0.0, 1.0, 0.0], &config);
         let camera_buffer = device.create_buffer(&BufferDescriptor {
             label: Some("Camera Buffer"),
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
@@ -179,6 +182,27 @@ impl Scene {
             })
         };
 
+        let floor = Model::from_object::<assets::objects::TestFloor>("Floor", device, None);
+        let car = Model::from_object::<assets::objects::Car>("Car", device, None);
+        let wheels = [0, 1, 2, 3].map(|i| {
+            Model::from_object::<assets::objects::Wheel>(
+                format!("Wheel {}", i).as_str(),
+                device,
+                Some(Isometry3::from_parts(
+                    Translation::identity(),
+                    Rotation3::from_axis_angle(
+                        &Vector3::z_axis(),
+                        if i % 2 == 0 {
+                            -std::f32::consts::FRAC_PI_2
+                        } else {
+                            std::f32::consts::FRAC_PI_2
+                        },
+                    )
+                    .into(),
+                )),
+            )
+        });
+
         Scene {
             mesh_render_pipeline,
             debug_render_pipeline,
@@ -186,19 +210,28 @@ impl Scene {
             scene_bind_group,
 
             camera,
-            car: Model::from_object::<assets::objects::Car>("Car", device),
-            floor: Model::from_object::<assets::objects::TestFloor>("Floor", device),
+            floor,
+            car,
+            wheels,
         }
     }
 
-    pub fn prepare(&mut self, queue: &Queue) {
+    pub fn prepare(&mut self, queue: &Queue, snapshot: &RenderSnapshot) {
         queue.write_buffer(
             &self.camera_buffer,
             0,
             bytemuck::cast_slice(&[self.camera.get_view_projection_matrix()]),
         );
+
+        self.wheels.iter_mut().enumerate().for_each(|(i, w)| {
+            w.set_transform(snapshot.wheel_transforms[i]);
+        });
+
+        self.car.set_transform(snapshot.car_transform);
+
         self.car.prepare(queue);
         self.floor.prepare(queue);
+        self.wheels.iter_mut().for_each(|w| w.prepare(queue));
     }
 
     pub fn render<'a>(&'a self, render_pass: &mut wgpu::RenderPass<'a>) {
@@ -207,9 +240,13 @@ impl Scene {
         render_pass.set_pipeline(&self.mesh_render_pipeline);
         self.car.render(render_pass);
         self.floor.render(render_pass);
+        self.wheels.iter().for_each(|w| w.render(render_pass));
 
         render_pass.set_pipeline(&self.debug_render_pipeline);
         self.car.render_debug_lines(render_pass);
         self.floor.render_debug_lines(render_pass);
+        self.wheels
+            .iter()
+            .for_each(|w| w.render_debug_lines(render_pass));
     }
 }

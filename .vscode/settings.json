@@ -2,11 +2,12 @@
 	"liveServer.settings": {
 		"root": "web/",
 		"ignoreFiles": [
-			".vscode/**",
 			".cargo/**",
-			"src/**",
-			"crates/**",
+			".vscode/**",
 			"assets/**",
+			"crates/**",
+			"src/**",
+			"target/**",
 		]
 	},
 }

@@ -11,40 +11,6 @@ macro_rules! load_font {
     ($name:literal) => {{ include_bytes!(concat!(env!("FONTS_DIR"), "/", $name)) }};
 }
 
-#[macro_export]
-macro_rules! debug_polyline {
-    // base: one point left → done
-    (@acc [$($acc:tt)*] $col:expr; $last:expr) => {
-        [ $($acc)* ]
-    };
-    // recursively accumulate
-    (@acc [$($acc:tt)*] $col:expr; $prev:expr, $cur:expr $(,$rest:expr)*) => {
-        debug_polyline!(@acc [ $($acc)* debug_line!($col, $prev, $cur), ] $col; $cur $(, $rest)* )
-    };
-    // invocation method
-    ($col:expr, $pos0:expr $(, $pos:expr)+ $(,)? ) => {{
-        debug_polyline!(@acc [] $col; $pos0 $(,$pos)+ )
-    }};
-}
-
-#[macro_export]
-macro_rules! debug_polyloop {
-    ($col:expr, $pos0:expr $(, $pos:expr)+ $(,)? ) => {{
-        debug_polyline!($col, $pos0, $($pos,)+ $pos0)
-    }};
-}
-
-#[macro_export]
-macro_rules! debug_line {
-    ($col:expr, $pos1:expr, $pos2:expr) => {
-        DebugLine {
-            col: $col,
-            pos1: $pos1,
-            pos2: $pos2,
-        }
-    };
-}
-
 /// Create an array of `DebugLine`s from a set of semicolon-delimited polylines
 ///
 /// Define a polyline like so:
