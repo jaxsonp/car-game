@@ -5,6 +5,8 @@ use crate::*;
 
 pub struct Car {}
 impl Car {
+    pub const ACCELERATION: f32 = 10.0;
+
     pub const MASS: f32 = 1600.0;
     /// max extension of the suspension
     pub const SUSPENSION_MAX: f32 = 0.3;

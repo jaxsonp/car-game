@@ -1,15 +1,6 @@
 use nalgebra::{Rotation, Unit, Vector3};
-use winit::{
-    event::{KeyEvent, WindowEvent},
-    keyboard::{KeyCode, PhysicalKey},
-};
-
-use render::camera::Camera;
-
-pub trait CameraController {
-    fn handle_window_event(&mut self, event: &WindowEvent);
-    fn update(&mut self, t_delta: f32, cam: &mut Camera);
-}
+use utils::Camera;
+use winit::keyboard::KeyCode;
 
 /// A simple stand-in camera controller for flying around the scene creative mode style
 pub struct DebugCameraController {
@@ -45,39 +36,24 @@ impl DebugCameraController {
             right_pressed: false,
         }
     }
-}
-impl CameraController for DebugCameraController {
-    fn handle_window_event(&mut self, event: &WindowEvent) {
-        match event {
-            WindowEvent::KeyboardInput {
-                event:
-                    KeyEvent {
-                        physical_key: PhysicalKey::Code(key),
-                        state: key_state,
-                        ..
-                    },
-                ..
-            } => {
-                let pressed = key_state.is_pressed();
-                match key {
-                    KeyCode::KeyW => self.w_pressed = pressed,
-                    KeyCode::KeyA => self.a_pressed = pressed,
-                    KeyCode::KeyS => self.s_pressed = pressed,
-                    KeyCode::KeyD => self.d_pressed = pressed,
-                    KeyCode::Space => self.space_pressed = pressed,
-                    KeyCode::ShiftLeft | KeyCode::ShiftRight => self.shift_pressed = pressed,
-                    KeyCode::ArrowUp => self.up_pressed = pressed,
-                    KeyCode::ArrowLeft => self.left_pressed = pressed,
-                    KeyCode::ArrowDown => self.down_pressed = pressed,
-                    KeyCode::ArrowRight => self.right_pressed = pressed,
-                    _ => {}
-                }
-            }
+
+    pub fn handle_key_event(&mut self, key: KeyCode, pressed: bool) {
+        match key {
+            KeyCode::KeyW => self.w_pressed = pressed,
+            KeyCode::KeyA => self.a_pressed = pressed,
+            KeyCode::KeyS => self.s_pressed = pressed,
+            KeyCode::KeyD => self.d_pressed = pressed,
+            KeyCode::Space => self.space_pressed = pressed,
+            KeyCode::ShiftLeft | KeyCode::ShiftRight => self.shift_pressed = pressed,
+            KeyCode::ArrowUp => self.up_pressed = pressed,
+            KeyCode::ArrowLeft => self.left_pressed = pressed,
+            KeyCode::ArrowDown => self.down_pressed = pressed,
+            KeyCode::ArrowRight => self.right_pressed = pressed,
             _ => {}
         }
     }
 
-    fn update(&mut self, t_delta: f32, camera: &mut Camera) {
+    pub fn update_camera(&mut self, t_delta: f32, camera: &mut Camera) {
         let turn_speed = Self::TURN_SPEED * t_delta;
         let move_speed = Self::MOVE_SPEED * t_delta;
 

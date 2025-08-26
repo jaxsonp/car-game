@@ -1,18 +1,17 @@
+mod camera;
 pub mod debug;
 pub mod mesh;
 mod model;
 
 use nalgebra::{Isometry3, Rotation3, Translation, Vector3};
-use sim::RenderSnapshot;
+use utils::*;
 use wgpu::{
     BindGroupDescriptor, BindGroupEntry, BindGroupLayoutDescriptor, BindGroupLayoutEntry,
     BindingType, BufferBindingType, BufferDescriptor, Queue, RenderPipeline, ShaderStages,
 };
 
-use crate::{
-    DepthTexture,
-    camera::{Camera, CameraUniformMatrix},
-};
+use crate::DepthTexture;
+use camera::{CameraUniformMatrix, get_view_projection_matrix};
 use debug::DebugLineVertex;
 use model::Model;
 
@@ -31,7 +30,13 @@ pub struct Scene {
 
 impl Scene {
     pub fn new(device: &wgpu::Device, config: &wgpu::SurfaceConfiguration) -> Scene {
-        let camera = Camera::new([8.0, 4.0, 4.0], [0.0, 0.0, 0.0], [0.0, 1.0, 0.0], &config);
+        let camera = Camera::new(
+            [8.0, 4.0, 4.0],
+            [0.0, 0.0, 0.0],
+            [0.0, 1.0, 0.0],
+            config.width as f32,
+            config.height as f32,
+        );
         let camera_buffer = device.create_buffer(&BufferDescriptor {
             label: Some("Camera Buffer"),
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
@@ -220,7 +225,7 @@ impl Scene {
         queue.write_buffer(
             &self.camera_buffer,
             0,
-            bytemuck::cast_slice(&[self.camera.get_view_projection_matrix()]),
+            bytemuck::cast_slice(&[get_view_projection_matrix(&self.camera)]),
         );
 
         self.wheels.iter_mut().enumerate().for_each(|(i, w)| {

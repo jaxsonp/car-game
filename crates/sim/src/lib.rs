@@ -1,15 +1,9 @@
 use assets::GameObject;
-use nalgebra::{Isometry3, Point3, Vector3};
-use rapier3d::prelude::*;
+use nalgebra::{Isometry3, Point3, Rotation3, Vector3};
+use rapier3d::{na::UnitQuaternion, prelude::*};
+use utils::*;
 
 const GRAVITY: f32 = 9.81;
-
-pub struct RenderSnapshot {
-    pub car_transform: Isometry3<f32>,
-    /// How far below offset each wheel is (front-driver, front-pass, rear-driver, rear-pass)
-    pub wheel_transforms: [Isometry3<f32>; 4],
-    pub debug_string: Option<String>,
-}
 
 pub struct GameSimulation {
     rigid_bodies: RigidBodySet,
@@ -41,7 +35,12 @@ impl GameSimulation {
 
         let car_rbody = RigidBodyBuilder::dynamic()
             .additional_mass(objects::Car::MASS)
-            .linvel(Vector3::new(0.0, 8.0, 0.0))
+            .linvel(Vector3::new(4.0, 6.0, 0.0))
+            .angvel(Vector3::new(0.0, -0.8, 0.1))
+            .position(Isometry3::from_parts(
+                Point3::new(0.0, 7.0, 0.0).into(),
+                Rotation3::identity().into(),
+            ))
             .build();
         let car_rbody_handle = rigid_bodies.insert(car_rbody);
         let car_collider = objects::Car::get_collision_box().build();
@@ -101,8 +100,8 @@ impl GameSimulation {
         }
     }
 
+    /// doin car physics
     fn do_car_physics(&mut self) -> [Isometry3<f32>; 4] {
-        // doin car physics
         use assets::objects::Car;
 
         let car_transform = *self.rigid_bodies[self.car_rbody_handle].position();
@@ -157,5 +156,38 @@ impl GameSimulation {
         });
 
         wheel_positions.map(|pos| Isometry3::from_parts(pos.into(), *car_rb.rotation()))
+    }
+
+    pub fn update_camera(&self, t_delta: f32, cam: &mut Camera) {
+        // time delta adjusted lerp scalars
+        const CAM_LERP: f32 = 4.0;
+
+        const CAM_EYE_OFFSET: Vector3<f32> = Vector3::new(0.0, 5.0, -8.0);
+        // camera target offset in world space
+        const CAM_TARGET_OFFSET: Vector3<f32> = Vector3::new(0.0, 1.0, 0.0);
+
+        let car_rb = &self.rigid_bodies[self.car_rbody_handle];
+        let car_transform = car_rb.position();
+
+        let forward_dir: Vector3<f32> = {
+            // NOTE using car direction or velocity direction as forward? idk yet
+            let mut v = car_transform.rotation.transform_vector(&Vector3::z());
+            //let mut v: Vector3<f32> = *car_rb.linvel();
+            v.y = 0.0;
+            v.normalize()
+        };
+        let target_eye_offset: Point3<f32> =
+            UnitQuaternion::face_towards(&forward_dir, &Vector3::y())
+                .transform_point(&CAM_EYE_OFFSET.into());
+        let target_eye: Point3<f32> = car_transform
+            .translation
+            .transform_point(&target_eye_offset);
+        cam.eye = cam.eye.lerp(&target_eye, CAM_LERP * t_delta);
+
+        let target_target: Point3<f32> =
+            (car_transform.translation.vector + CAM_TARGET_OFFSET).into();
+        cam.target = cam.target.lerp(&target_target, CAM_LERP * t_delta);
+
+        cam.up = cam.up.lerp(&Vector3::y(), CAM_LERP * t_delta);
     }
 }

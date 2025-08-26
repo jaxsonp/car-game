@@ -11,7 +11,7 @@ assets = { workspace = true }
 bytemuck = { version = "1.16", features = [ "derive" ] }
 log = { workspace = true }
 nalgebra = { workspace = true }
-sim = { workspace = true }
+utils = { workspace = true }
 wasm-bindgen = { workspace = true }
 wgpu = { workspace = true }
 wgpu_text = "26.0.0"

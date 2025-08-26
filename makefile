@@ -4,7 +4,7 @@ WASM_OUTDIR = $(CURDIR)/web/pkg/
 
 .PHONY: run-dev build-dev build-release clean
 
-run-dev: build-dev
+run: build-dev
 	@if ! command -v wserver &> /dev/null; then cargo install wserver; fi
 	wserver --path $(CURDIR)/web -p $(DEV_PORT)
 

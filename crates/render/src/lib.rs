@@ -1,10 +1,9 @@
-pub mod camera;
 mod gui;
 mod scene;
 
 use std::sync::Arc;
 
-use sim::RenderSnapshot;
+use utils::*;
 use wasm_bindgen::prelude::*;
 use wgpu::RequestAdapterOptions;
 use winit::{event::WindowEvent, window::Window};
@@ -114,7 +113,7 @@ impl RenderState {
             self.depth_texture = DepthTexture::new(&self.device, &self.config);
 
             // update camera
-            self.scene.camera.handle_resize(width, height);
+            self.scene.camera.resize(width, height);
         }
 
         // gui text brush needs to know screen size

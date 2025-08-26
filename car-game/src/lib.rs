@@ -1,4 +1,4 @@
-mod camera;
+mod debug_controller;
 mod framerate;
 
 use std::sync::Arc;
@@ -15,7 +15,7 @@ use winit::{
     window::Window,
 };
 
-use camera::{CameraController, DebugCameraController};
+use debug_controller::DebugCameraController;
 use framerate::FramerateCounter;
 
 const CANVAS_ID: &str = "main-canvas";
@@ -43,6 +43,8 @@ pub struct App {
     render_state: Option<RenderState>,
     sim: GameSimulation,
     fps_counter: FramerateCounter,
+
+    debug_camera_activated: bool,
     debug_camera_controller: DebugCameraController,
 }
 
@@ -55,6 +57,7 @@ impl App {
             render_state: None,
             sim: GameSimulation::new(),
             fps_counter,
+            debug_camera_activated: false,
             debug_camera_controller: DebugCameraController::new(),
         }
     }
@@ -123,10 +126,25 @@ impl ApplicationHandler<RenderState> for App {
 
                 let t_delta = self.fps_counter.tick();
 
-                let snapshot = self.sim.step(t_delta);
+                let mut snapshot = self.sim.step(t_delta);
 
-                self.debug_camera_controller
-                    .update(t_delta, &mut render_state.scene.camera);
+                if self.debug_camera_activated {
+                    self.debug_camera_controller
+                        .update_camera(t_delta, &mut render_state.scene.camera);
+                } else {
+                    self.sim
+                        .update_camera(t_delta, &mut render_state.scene.camera);
+                }
+
+                snapshot.debug_string = Some(
+                    if self.debug_camera_activated {
+                        "[debug cam]\n"
+                    } else {
+                        "[car cam]\n"
+                    }
+                    .to_string()
+                        + &snapshot.debug_string.unwrap_or_default(),
+                );
 
                 render_state
                     .gui
@@ -149,12 +167,17 @@ impl ApplicationHandler<RenderState> for App {
                         log::info!("Program exiting");
                         event_loop.exit()
                     }
+                    (KeyCode::Tab, true) => {
+                        log::info!("Switched camera mode");
+                        self.debug_camera_activated = !self.debug_camera_activated;
+                    }
                     _ => {}
                 }
+                self.debug_camera_controller.handle_key_event(code, pressed);
             }
             _ => {}
         }
-        self.debug_camera_controller.handle_window_event(&event);
+
         render_state.handle_window_event(&event);
     }
 }

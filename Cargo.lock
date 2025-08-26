@@ -249,6 +249,7 @@ dependencies = [
 name = "car-game"
 version = "0.1.0"
 dependencies = [
+ "assets",
  "console_error_panic_hook",
  "console_log",
  "instant",
@@ -257,6 +258,7 @@ dependencies = [
  "parking_lot 0.11.2",
  "render",
  "sim",
+ "utils",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",
@@ -1843,7 +1845,7 @@ dependencies = [
  "bytemuck",
  "log",
  "nalgebra",
- "sim",
+ "utils",
  "wasm-bindgen",
  "wgpu",
  "wgpu_text",
@@ -1993,6 +1995,7 @@ dependencies = [
  "assets",
  "log",
  "rapier3d",
+ "utils",
 ]
 
 [[package]]
@@ -2259,6 +2262,13 @@ name = "unicode-width"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4a1a07cc7db3810833284e8d372ccdc6da29741639ecc70c9ec107df0fa6154c"
+
+[[package]]
+name = "utils"
+version = "0.1.0"
+dependencies = [
+ "nalgebra",
+]
 
 [[package]]
 name = "version_check"
