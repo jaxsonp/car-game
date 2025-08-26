@@ -1996,6 +1996,7 @@ dependencies = [
  "log",
  "rapier3d",
  "utils",
+ "winit",
 ]
 
 [[package]]

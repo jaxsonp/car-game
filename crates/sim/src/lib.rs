@@ -1,11 +1,17 @@
+mod controller;
+
 use assets::GameObject;
 use nalgebra::{Isometry3, Point3, Rotation3, Vector3};
 use rapier3d::{na::UnitQuaternion, prelude::*};
 use utils::*;
 
+use controller::CarController;
+
 const GRAVITY: f32 = 9.81;
 
 pub struct GameSimulation {
+    pub controller: CarController,
+
     rigid_bodies: RigidBodySet,
     colliders: ColliderSet,
 
@@ -35,12 +41,13 @@ impl GameSimulation {
 
         let car_rbody = RigidBodyBuilder::dynamic()
             .additional_mass(objects::Car::MASS)
-            .linvel(Vector3::new(4.0, 6.0, 0.0))
-            .angvel(Vector3::new(0.0, -0.8, 0.1))
+            .linvel(Vector3::new(15.0, 3.0, 0.0))
+            //.angvel(Vector3::new(0.0, -0.8, 0.1))
             .position(Isometry3::from_parts(
                 Point3::new(0.0, 7.0, 0.0).into(),
                 Rotation3::identity().into(),
             ))
+            .can_sleep(false) // car doesn't sleep
             .build();
         let car_rbody_handle = rigid_bodies.insert(car_rbody);
         let car_collider = objects::Car::get_collision_box().build();
@@ -56,6 +63,8 @@ impl GameSimulation {
         let ccd_solver = CCDSolver::new();
 
         GameSimulation {
+            controller: CarController::new(),
+
             rigid_bodies,
             colliders,
 
@@ -118,9 +127,11 @@ impl GameSimulation {
             Car::WHEEL_OFFSETS.map(|wheel_offset| {
                 let ray_origin = car_transform * Point3::from(wheel_offset);
                 let ray = Ray::new(ray_origin, -car_up_direction);
-                if let Some((_collider, hit_dist)) =
-                    query_pipeline.cast_ray(&ray, Car::SUSPENSION_MAX + Car::WHEEL_RADIUS, false)
-                {
+                if let Some((_collider, hit_dist)) = query_pipeline.cast_ray_and_get_normal(
+                    &ray,
+                    Car::SUSPENSION_MAX + Car::WHEEL_RADIUS,
+                    false,
+                ) {
                     (ray, Some(hit_dist))
                 } else {
                     (ray, None)
@@ -129,29 +140,54 @@ impl GameSimulation {
         };
 
         let car_rb = &mut self.rigid_bodies[self.car_rbody_handle];
-        car_rb.wake_up(false);
 
         // calculate and apply forces
         let wheel_positions = hits.map(|(ray, maybe_hit)| {
-            if let Some(hit_dist) = maybe_hit {
-                // how far the spring is compressed
+            if let Some(intersection) = maybe_hit {
+                // tire is on the ground
+
+                let hit_dist = intersection.time_of_impact;
+                let contact_point = ray.point_at(hit_dist - Car::WHEEL_RADIUS);
+
+                // suspension force
                 let mut compression = ((Car::SUSPENSION_MAX + Car::WHEEL_RADIUS) - hit_dist)
                     / (Car::SUSPENSION_MAX + Car::WHEEL_RADIUS);
-                // apply curve
                 compression = Car::suspension_compression_curve(compression);
-
-                // velocity of the suspension
-                let spring_velocity = car_rb.velocity_at_point(&ray.origin).dot(&ray.dir);
-
                 let spring_impulse = compression * Car::SUSPENSION_STIFFNESS;
-                let damper_impulse = spring_velocity * Car::SUSPENSION_DAMPER;
-                let suspension_impulse = car_up_direction * (spring_impulse + damper_impulse);
 
+                let spring_velocity = car_rb.velocity_at_point(&ray.origin).dot(&ray.dir);
+                let damper_impulse = spring_velocity * Car::SUSPENSION_DAMPER;
+
+                let suspension_impulse = car_up_direction * (spring_impulse + damper_impulse);
                 car_rb.apply_impulse_at_point(suspension_impulse, ray.origin, false);
 
-                ray.point_at(hit_dist - Car::WHEEL_RADIUS)
+                // grip force
+                let tire_velocity: Vector3<f32> = car_rb.velocity_at_point(&contact_point);
+                let right_dir = car_rb.position().rotation.transform_vector(&-Vector3::x());
+                let lateral_velocity = right_dir.scale(tire_velocity.dot(&right_dir));
+                let grip_impulse = -lateral_velocity * Car::TIRE_LATERAL_GRIP;
+                car_rb.apply_impulse_at_point(grip_impulse, contact_point, false);
+
+                // drive force
+                let forward_dir = car_rb.position().rotation.transform_vector(&Vector3::z());
+                if self.controller.w_pressed {
+                    car_rb.apply_impulse_at_point(
+                        forward_dir.scale(Car::ACCELERATION),
+                        contact_point,
+                        false,
+                    );
+                } else if self.controller.s_pressed {
+                    car_rb.apply_impulse_at_point(
+                        forward_dir.scale(-Car::ACCELERATION * 0.9),
+                        contact_point,
+                        false,
+                    );
+                }
+
+                return contact_point;
             } else {
-                ray.point_at(Car::SUSPENSION_MAX)
+                // tire is not on the ground
+                return ray.point_at(Car::SUSPENSION_MAX);
             }
         });
 
@@ -159,12 +195,11 @@ impl GameSimulation {
     }
 
     pub fn update_camera(&self, t_delta: f32, cam: &mut Camera) {
-        // time delta adjusted lerp scalars
-        const CAM_LERP: f32 = 4.0;
+        const CAM_EYE_LERP: f32 = 7.0;
+        const CAM_TARGET_LERP: f32 = 18.0;
 
         const CAM_EYE_OFFSET: Vector3<f32> = Vector3::new(0.0, 5.0, -8.0);
-        // camera target offset in world space
-        const CAM_TARGET_OFFSET: Vector3<f32> = Vector3::new(0.0, 1.0, 0.0);
+        const CAM_TARGET_OFFSET: Vector3<f32> = Vector3::new(0.0, 2.0, 0.0);
 
         let car_rb = &self.rigid_bodies[self.car_rbody_handle];
         let car_transform = car_rb.position();
@@ -182,12 +217,12 @@ impl GameSimulation {
         let target_eye: Point3<f32> = car_transform
             .translation
             .transform_point(&target_eye_offset);
-        cam.eye = cam.eye.lerp(&target_eye, CAM_LERP * t_delta);
+        cam.eye = cam.eye.lerp(&target_eye, CAM_EYE_LERP * t_delta);
 
         let target_target: Point3<f32> =
             (car_transform.translation.vector + CAM_TARGET_OFFSET).into();
-        cam.target = cam.target.lerp(&target_target, CAM_LERP * t_delta);
+        cam.target = cam.target.lerp(&target_target, CAM_TARGET_LERP * t_delta);
 
-        cam.up = cam.up.lerp(&Vector3::y(), CAM_LERP * t_delta);
+        cam.up = cam.up.lerp(&Vector3::y(), CAM_TARGET_LERP * t_delta);
     }
 }

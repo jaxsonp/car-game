@@ -11,3 +11,4 @@ assets = { workspace = true }
 rapier3d = { workspace = true }
 log = { workspace = true }
 utils = { workspace = true }
+winit = { workspace = true } 

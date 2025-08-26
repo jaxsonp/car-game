@@ -174,6 +174,7 @@ impl ApplicationHandler<RenderState> for App {
                     _ => {}
                 }
                 self.debug_camera_controller.handle_key_event(code, pressed);
+                self.sim.controller.handle_key_event(code, pressed);
             }
             _ => {}
         }

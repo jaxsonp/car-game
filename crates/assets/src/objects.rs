@@ -5,7 +5,7 @@ use crate::*;
 
 pub struct Car {}
 impl Car {
-    pub const ACCELERATION: f32 = 10.0;
+    pub const ACCELERATION: f32 = 40.0;
 
     pub const MASS: f32 = 1600.0;
     /// max extension of the suspension
@@ -20,6 +20,9 @@ impl Car {
         // nonlinear spring force
         val.powf(2.5)
     }
+
+    /// Lateral grip coefficient
+    pub const TIRE_LATERAL_GRIP: f32 = 5.0;
 
     pub const WHEEL_DIAMETER: f32 = 0.636653;
     pub const WHEEL_RADIUS: f32 = Self::WHEEL_DIAMETER / 2.0;
@@ -150,16 +153,20 @@ impl GameObject for Wheel {
 }
 
 pub struct TestFloor {}
+impl TestFloor {
+    /// Radius
+    const SIZE: f32 = 100.0;
+}
 impl GameObject for TestFloor {
     const render_meshes: &'static [RawMesh] = load_obj_mesh!("floor.obj");
 
     #[rustfmt::skip]
     const debug_lines: &'static [RawDebugLine] = &[
         // floor plane
-        RawDebugLine { col: BLACK, pos1: [20.0, 0.0, 20.0], pos2: [20.0, 0.0, -20.0], },
-        RawDebugLine { col: BLACK, pos1: [20.0, 0.0, -20.0], pos2: [-20.0, 0.0, -20.0], },
-        RawDebugLine { col: BLACK, pos1: [-20.0, 0.0, -20.0], pos2: [-20.0, 0.0, 20.0], },
-        RawDebugLine { col: BLACK, pos1: [-20.0, 0.0, 20.0], pos2: [20.0, 0.0, 20.0], },
+        RawDebugLine { col: BLACK, pos1: [Self::SIZE, 0.0, Self::SIZE], pos2: [Self::SIZE, 0.0, -Self::SIZE], },
+        RawDebugLine { col: BLACK, pos1: [Self::SIZE, 0.0, -Self::SIZE], pos2: [-Self::SIZE, 0.0, -Self::SIZE], },
+        RawDebugLine { col: BLACK, pos1: [-Self::SIZE, 0.0, -Self::SIZE], pos2: [-Self::SIZE, 0.0, Self::SIZE], },
+        RawDebugLine { col: BLACK, pos1: [-Self::SIZE, 0.0, Self::SIZE], pos2: [Self::SIZE, 0.0, Self::SIZE], },
 
         // origin
         RawDebugLine { col: RED, pos1: [0.0, 0.0, 0.0], pos2: [1.0, 0.0, 0.0], },
@@ -171,6 +178,9 @@ impl GameObject for TestFloor {
     ];
 
     fn get_collision_box() -> ColliderBuilder {
-        ColliderBuilder::heightfield(DMatrix::zeros(2, 2), Vector3::new(40.0, 1.0, 40.0))
+        ColliderBuilder::heightfield(
+            DMatrix::zeros(2, 2),
+            Vector3::new(Self::SIZE * 2.0, 1.0, Self::SIZE * 2.0),
+        )
     }
 }
