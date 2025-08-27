@@ -20,9 +20,11 @@ wasm-bindgen = "0.2.100"
 wgpu = { version = "26.0.1", features = ["webgl", "webgpu"] }
 winit = { version = "0.30", features = ["android-native-activity"] }
 
-# always optimize rapier
-[profile.dev.package.rapier3d]
-opt-level = 3
+# do some optimizations
+[profile.dev]
+opt-level = 1
+package.rapier3d.opt-level = 3 # always optimize rapier
 
 [profile.release]
 codegen-units = 1
+lto = "fat"

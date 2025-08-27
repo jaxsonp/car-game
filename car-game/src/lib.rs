@@ -124,16 +124,17 @@ impl ApplicationHandler<RenderState> for App {
             WindowEvent::RedrawRequested => {
                 // where the magic happens
 
-                let t_delta = self.fps_counter.tick();
+                let dt = self.fps_counter.tick();
+                let adjusted_dt = dt * 60.0;
 
-                let mut snapshot = self.sim.step(t_delta);
+                let mut snapshot = self.sim.step(adjusted_dt);
 
                 if self.debug_camera_activated {
                     self.debug_camera_controller
-                        .update_camera(t_delta, &mut render_state.scene.camera);
+                        .update_camera(adjusted_dt, &mut render_state.scene.camera);
                 } else {
                     self.sim
-                        .update_camera(t_delta, &mut render_state.scene.camera);
+                        .update_camera(adjusted_dt, &mut render_state.scene.camera);
                 }
 
                 snapshot.debug_string = Some(

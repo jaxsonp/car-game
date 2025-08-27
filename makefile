@@ -2,17 +2,19 @@
 DEV_PORT = 5500
 WASM_OUTDIR = $(CURDIR)/web/pkg/
 
-.PHONY: run-dev build-dev build-release clean
+.PHONY: server build build-release clean
 
-run: build-dev
+serve:
 	@if ! command -v wserver &> /dev/null; then cargo install wserver; fi
-	wserver --path $(CURDIR)/web -p $(DEV_PORT)
+	wserver -l --path $(CURDIR)/web -p $(DEV_PORT)
 
-build-dev:
+build:
 	wasm-pack build ./car-game/ --target web --out-dir $(WASM_OUTDIR) --dev 
+	@echo -e "\nDev build complete"
 
 build-release:
 	wasm-pack build ./car-game/ --target web --out-dir $(WASM_OUTDIR) --release
+	@echo -e "\nRelease build complete"
 
 clean:
 	rm -rf $(WASM_OUTDIR) ./target

@@ -5,9 +5,18 @@ use crate::*;
 
 pub struct Car {}
 impl Car {
-    pub const ACCELERATION: f32 = 40.0;
-
     pub const MASS: f32 = 1600.0;
+
+    pub const ACCELERATION: f32 = 50.0;
+
+    pub const SLOW_FAST_THRESH: f32 = 20.0;
+
+    pub const TURN_RADIUS_SLOW: f32 = 28f32.to_radians();
+    pub const TURN_RADIUS_FAST: f32 = 12f32.to_radians();
+
+    pub const TURN_SPEED_SLOW: f32 = 4.5f32.to_radians();
+    pub const TURN_SPEED_FAST: f32 = 3f32.to_radians();
+
     /// max extension of the suspension
     pub const SUSPENSION_MAX: f32 = 0.3;
     /// Suspension spring constant
@@ -21,11 +30,12 @@ impl Car {
         val.powf(2.5)
     }
 
-    /// Lateral grip coefficient
-    pub const TIRE_LATERAL_GRIP: f32 = 5.0;
+    pub const DOWNFORCE_COEFFICIENT: f32 = 8.0;
 
     pub const WHEEL_DIAMETER: f32 = 0.636653;
     pub const WHEEL_RADIUS: f32 = Self::WHEEL_DIAMETER / 2.0;
+    /// Tire grip coefficient
+    pub const WHEEL_GRIP: f32 = 18.0;
 
     // wheel positions
     const WHEEL_OFFSET_FRONT_DRIVER: [f32; 3] = [0.586441, 0.311319, 1.10437];
@@ -155,7 +165,7 @@ impl GameObject for Wheel {
 pub struct TestFloor {}
 impl TestFloor {
     /// Radius
-    const SIZE: f32 = 100.0;
+    const SIZE: f32 = 300.0;
 }
 impl GameObject for TestFloor {
     const render_meshes: &'static [RawMesh] = load_obj_mesh!("floor.obj");

@@ -17,10 +17,10 @@ pub struct DebugCameraController {
 }
 
 impl DebugCameraController {
-    /// units per sec
-    const MOVE_SPEED: f32 = 9.5;
-    /// rads per sec
-    const TURN_SPEED: f32 = 80f32.to_radians();
+    /// units per frame
+    const MOVE_SPEED: f32 = 0.2;
+    /// rads per frame
+    const TURN_SPEED: f32 = 1.5f32.to_radians();
 
     pub fn new() -> Self {
         Self {
@@ -53,9 +53,9 @@ impl DebugCameraController {
         }
     }
 
-    pub fn update_camera(&mut self, t_delta: f32, camera: &mut Camera) {
-        let turn_speed = Self::TURN_SPEED * t_delta;
-        let move_speed = Self::MOVE_SPEED * t_delta;
+    pub fn update_camera(&mut self, adjusted_dt: f32, camera: &mut Camera) {
+        let turn_speed = Self::TURN_SPEED * adjusted_dt;
+        let move_speed = Self::MOVE_SPEED * adjusted_dt;
 
         let mut facing = Unit::new_normalize(camera.target - camera.eye);
         let up = Vector3::y_axis();
