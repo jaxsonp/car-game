@@ -14,7 +14,7 @@ use crate::scene::debug::DebugLineGroup;
 pub struct Model {
     _name: String,
     meshes: Vec<Mesh>,
-    debug_lines: DebugLineGroup,
+    debug_lines: Option<DebugLineGroup>,
     bind_group: BindGroup,
 
     static_transform: Option<Isometry3<f32>>,
@@ -31,7 +31,11 @@ impl Model {
             .into_iter()
             .map(|raw| Mesh::from_raw(*raw, device))
             .collect();
-        let debug_lines = DebugLineGroup::from_raw(device, GO::debug_lines);
+        let debug_lines = if GO::debug_lines.len() > 0 {
+            Some(DebugLineGroup::from_raw(device, GO::debug_lines))
+        } else {
+            None
+        };
 
         let transform_buffer = device.create_buffer(&BufferDescriptor {
             label: Some("model transform buffer"),
@@ -116,8 +120,10 @@ impl Model {
     }
 
     pub fn render_debug_lines(&self, render_pass: &mut RenderPass) {
-        render_pass.set_bind_group(1, &self.bind_group, &[]);
-        self.debug_lines.render(render_pass);
+        if let Some(debug_lines) = &self.debug_lines {
+            render_pass.set_bind_group(1, &self.bind_group, &[]);
+            debug_lines.render(render_pass);
+        }
     }
 
     pub fn set_transform(&mut self, transform: Isometry3<f32>) {

@@ -23,7 +23,7 @@ impl GameSimulation {
         let mut physics_handler = PhysicsHandler::new();
 
         let floor_rbody = RigidBodyBuilder::new(RigidBodyType::Fixed).build();
-        let floor_collider = assets::objects::TestFloor::get_collision_box().build();
+        let floor_collider = assets::objects::Ground::get_collision_box().build();
         physics_handler.insert_object(floor_rbody, Some(floor_collider));
 
         let car_handler = CarHandler::new(&mut physics_handler);

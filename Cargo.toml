@@ -22,8 +22,9 @@ winit = { version = "0.30", features = ["android-native-activity"] }
 
 # do some optimizations
 [profile.dev]
-opt-level = 1
-package.rapier3d.opt-level = 3 # always optimize rapier
+opt-level = 2
+package.rapier3d.opt-level = 3
+package.nalgebra.opt-level = 3
 
 [profile.release]
 codegen-units = 1

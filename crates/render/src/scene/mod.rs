@@ -23,7 +23,7 @@ pub struct Scene {
     scene_bind_group: wgpu::BindGroup,
 
     pub camera: Camera,
-    pub floor: Model,
+    pub static_models: Vec<Model>,
     pub car: Model,
     pub wheels: [Model; 4],
 }
@@ -187,7 +187,6 @@ impl Scene {
             })
         };
 
-        let floor = Model::from_object::<assets::objects::TestFloor>("Floor", device, None);
         let car = Model::from_object::<assets::objects::Car>("Car", device, None);
         let wheels = [0, 1, 2, 3].map(|i| {
             Model::from_object::<assets::objects::Wheel>(
@@ -207,6 +206,11 @@ impl Scene {
                 )),
             )
         });
+        let static_models: Vec<Model> = vec![
+            Model::from_object::<assets::objects::Ground>("Ground", device, None),
+            Model::from_object::<assets::objects::Roads>("Roads", device, None),
+            Model::from_object::<assets::objects::Ocean>("Ocean", device, None),
+        ];
 
         Scene {
             mesh_render_pipeline,
@@ -215,7 +219,7 @@ impl Scene {
             scene_bind_group,
 
             camera,
-            floor,
+            static_models,
             car,
             wheels,
         }
@@ -235,8 +239,8 @@ impl Scene {
         self.car.set_transform(snapshot.car_transform);
 
         self.car.prepare(queue);
-        self.floor.prepare(queue);
         self.wheels.iter_mut().for_each(|w| w.prepare(queue));
+        self.static_models.iter_mut().for_each(|m| m.prepare(queue));
     }
 
     pub fn render<'a>(&'a self, render_pass: &mut wgpu::RenderPass<'a>) {
@@ -244,14 +248,18 @@ impl Scene {
 
         render_pass.set_pipeline(&self.mesh_render_pipeline);
         self.car.render(render_pass);
-        self.floor.render(render_pass);
         self.wheels.iter().for_each(|w| w.render(render_pass));
+        self.static_models
+            .iter()
+            .for_each(|m| m.render(render_pass));
 
         render_pass.set_pipeline(&self.debug_render_pipeline);
         self.car.render_debug_lines(render_pass);
-        self.floor.render_debug_lines(render_pass);
         self.wheels
             .iter()
             .for_each(|w| w.render_debug_lines(render_pass));
+        self.static_models
+            .iter()
+            .for_each(|m| m.render_debug_lines(render_pass));
     }
 }

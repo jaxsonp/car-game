@@ -41,7 +41,7 @@ fn main() {
             .with_extension("obj.rs");
 
         println!(
-            "cargo::warning=Preloading OBJ file \'{}\' (output: \'{}\')",
+            "Preloading OBJ file \'{}\' (output at: \'{}\')",
             file_path.display(),
             output_path.display(),
         );

@@ -1,4 +1,4 @@
-use nalgebra::{DMatrix, Vector3};
+use nalgebra::{DMatrix, Point3, Vector3};
 use rapier3d::prelude::*;
 
 use crate::*;
@@ -162,22 +162,33 @@ impl GameObject for Wheel {
     }
 }
 
-pub struct TestFloor {}
-impl TestFloor {
-    /// Radius
-    const SIZE: f32 = 300.0;
+pub struct Ocean {}
+impl Ocean {
+    const SIZE: f32 = 1000.0;
+    const WATER_HEIGHT: f32 = -4.12261;
 }
-impl GameObject for TestFloor {
-    const render_meshes: &'static [RawMesh] = load_obj_mesh!("floor.obj");
+impl GameObject for Ocean {
+    const render_meshes: &'static [RawMesh] = load_obj_mesh!("water.obj");
+
+    const debug_lines: &'static [RawDebugLine] = &[];
+
+    fn get_collision_box() -> ColliderBuilder {
+        ColliderBuilder::heightfield(
+            DMatrix::from_element(2, 2, Self::WATER_HEIGHT),
+            Vector3::new(Self::SIZE, 1.0, Self::SIZE),
+        )
+    }
+}
+
+pub struct Ground {}
+impl Ground {
+    const HITBOX_MESH: RawMesh = load_obj_mesh!("ground_hitbox.obj")[0];
+}
+impl GameObject for Ground {
+    const render_meshes: &'static [RawMesh] = load_obj_mesh!("ground.obj");
 
     #[rustfmt::skip]
     const debug_lines: &'static [RawDebugLine] = &[
-        // floor plane
-        RawDebugLine { col: BLACK, pos1: [Self::SIZE, 0.0, Self::SIZE], pos2: [Self::SIZE, 0.0, -Self::SIZE], },
-        RawDebugLine { col: BLACK, pos1: [Self::SIZE, 0.0, -Self::SIZE], pos2: [-Self::SIZE, 0.0, -Self::SIZE], },
-        RawDebugLine { col: BLACK, pos1: [-Self::SIZE, 0.0, -Self::SIZE], pos2: [-Self::SIZE, 0.0, Self::SIZE], },
-        RawDebugLine { col: BLACK, pos1: [-Self::SIZE, 0.0, Self::SIZE], pos2: [Self::SIZE, 0.0, Self::SIZE], },
-
         // origin
         RawDebugLine { col: RED, pos1: [0.0, 0.0, 0.0], pos2: [1.0, 0.0, 0.0], },
         RawDebugLine { col: GREEN, pos1: [0.0, 0.0, 0.0], pos2: [0.0, 1.0, 0.0], },
@@ -188,9 +199,57 @@ impl GameObject for TestFloor {
     ];
 
     fn get_collision_box() -> ColliderBuilder {
-        ColliderBuilder::heightfield(
-            DMatrix::zeros(2, 2),
-            Vector3::new(Self::SIZE * 2.0, 1.0, Self::SIZE * 2.0),
-        )
+        let mut verts: Vec<Point3<f32>> = Vec::new();
+        let mut indices: Vec<[u32; 3]> = Vec::new();
+
+        for v in Self::HITBOX_MESH.verts {
+            verts.push(Point3::from(v.pos));
+        }
+
+        let mut count = 0;
+        let mut cur_face: [u32; 3] = [0; 3];
+        for index in Self::HITBOX_MESH.indices {
+            cur_face[count] = *index as u32;
+            count += 1;
+            if count == 3 {
+                indices.push(cur_face);
+                count = 0;
+            }
+        }
+        ColliderBuilder::trimesh(verts, indices)
+            .expect("Failed to create ground's trimesh collision box")
+            .contact_skin(0.01)
+    }
+}
+
+pub struct Roads {}
+impl GameObject for Roads {
+    const render_meshes: &'static [RawMesh] = load_obj_mesh!("roads.obj");
+
+    const debug_lines: &'static [RawDebugLine] = &[];
+
+    fn get_collision_box() -> ColliderBuilder {
+        let mut verts: Vec<Point3<f32>> = Vec::new();
+        let mut indices: Vec<[u32; 3]> = Vec::new();
+
+        for mesh in Self::render_meshes {
+            for v in mesh.verts {
+                verts.push(Point3::from(v.pos));
+            }
+
+            let mut count = 0;
+            let mut cur_face: [u32; 3] = [0; 3];
+            for index in mesh.indices {
+                cur_face[count] = *index as u32;
+                count += 1;
+                if count == 3 {
+                    indices.push(cur_face);
+                    count = 0;
+                }
+            }
+        }
+        ColliderBuilder::trimesh(verts, indices)
+            .expect("Failed to create road trimesh collision box")
+            .contact_skin(0.025)
     }
 }
