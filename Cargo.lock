@@ -1248,6 +1248,7 @@ name = "obj"
 version = "0.1.0"
 dependencies = [
  "log",
+ "ordered-float",
 ]
 
 [[package]]

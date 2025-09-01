@@ -7,7 +7,9 @@ use std::{
     path::PathBuf,
 };
 
-use crate::mtl::parse_mtl_file;
+use ordered_float::NotNan;
+
+use mtl::parse_mtl_file;
 
 /// How a vertex is identified in a face definition, e.g. `4/4/3`
 #[derive(PartialEq, Eq, Hash, Clone, Copy)]
@@ -17,22 +19,24 @@ struct VertIndexes {
     // texcoord_index: usize,
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Eq, Hash, Clone, Copy)]
 pub struct Vert {
-    pub pos: [f32; 3],
-    pub normal: [f32; 3],
+    pub pos: [NotNan<f32>; 3],
+    pub normal: [NotNan<f32>; 3],
 }
 type Face = [usize; 3];
 
 pub struct OBJMesh {
     pub verts: Vec<Vert>,
     pub faces: Vec<Face>,
+    existing_verts: HashMap<Vert, usize>,
 }
-impl Default for OBJMesh {
-    fn default() -> Self {
+impl OBJMesh {
+    fn empty() -> Self {
         Self {
             verts: Vec::new(),
             faces: Vec::new(),
+            existing_verts: HashMap::new(),
         }
     }
 }
@@ -81,14 +85,19 @@ pub fn parse_obj_file(input_filepath: PathBuf) -> io::Result<Vec<(OBJMaterial, O
 
     // hashmap of each material (indexed) and its mesh
     let mut meshes: HashMap<Option<usize>, OBJMesh> = HashMap::new();
-    meshes.insert(None, OBJMesh::default());
+    meshes.insert(None, OBJMesh::empty());
     let mut current_material_index: Option<usize> = None;
     let mut current_mesh: &mut OBJMesh = meshes.get_mut(&current_material_index).unwrap();
 
     for line in input.lines() {
         let line = line?;
         let mut words = line.split_ascii_whitespace().map(String::from);
-        match words.next().unwrap().as_str() {
+        let first_word = if let Some(word) = words.next() {
+            word
+        } else {
+            continue;
+        };
+        match first_word.as_str() {
             "v" => raw_vert_positions.push(parse_float_triplet(words)),
             "vn" => raw_vert_normals.push(parse_float_triplet(words)),
             "f" => current_mesh.faces.append(
@@ -97,23 +106,25 @@ pub fn parse_obj_file(input_filepath: PathBuf) -> io::Result<Vec<(OBJMaterial, O
                     .map(|verts| {
                         verts.map(|v: VertIndexes| {
                             let new_vert = Vert {
-                                pos: raw_vert_positions[v.pos_index],
-                                normal: raw_vert_normals[v.normal_index],
+                                pos: raw_vert_positions[v.pos_index]
+                                    .map(|f| NotNan::new(f).unwrap()),
+                                normal: raw_vert_normals[v.normal_index]
+                                    .map(|f| NotNan::new(f).unwrap()),
                             };
-                            // checking if this vert already exists (yes I know it is O(n^2) shut up idc)
-                            for (index, existing_vert) in current_mesh.verts.iter().enumerate() {
-                                if new_vert == *existing_vert {
-                                    return index; // vert already exists
-                                }
+                            // checking if this vert already exists
+                            if let Some(found_index) = current_mesh.existing_verts.get(&new_vert) {
+                                return *found_index; // vert already exists
                             }
                             // this is a new vert, emit it
                             current_mesh.verts.push(new_vert);
+                            current_mesh
+                                .existing_verts
+                                .insert(new_vert, current_mesh.verts.len() - 1);
                             return current_mesh.verts.len() - 1;
                         })
                     })
                     .collect(),
             ),
-
             "mtllib" => parse_mtl_file(
                 input_filepath.parent().unwrap().join(words.next().unwrap()),
                 &mut material_list,
@@ -123,7 +134,7 @@ pub fn parse_obj_file(input_filepath: PathBuf) -> io::Result<Vec<(OBJMaterial, O
                 let mtl_name = words.next().unwrap();
                 current_material_index = Some(*material_table.get(&mtl_name).unwrap());
                 if !meshes.contains_key(&current_material_index) {
-                    meshes.insert(current_material_index, OBJMesh::default());
+                    meshes.insert(current_material_index, OBJMesh::empty());
                 }
                 current_mesh = meshes.get_mut(&current_material_index).unwrap()
             }
