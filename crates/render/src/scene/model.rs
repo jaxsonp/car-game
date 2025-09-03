@@ -1,3 +1,5 @@
+use std::cell::OnceCell;
+
 use assets::GameObject;
 use nalgebra::Isometry3;
 use wgpu::{
@@ -78,20 +80,25 @@ impl Model {
         }
     }
 
+    const BIND_GROUP_LAYOUT: OnceCell<BindGroupLayout> = OnceCell::new();
     pub fn get_bind_group_layout(device: &wgpu::Device) -> BindGroupLayout {
-        device.create_bind_group_layout(&BindGroupLayoutDescriptor {
-            label: Some("model bind group layout"),
-            entries: &[BindGroupLayoutEntry {
-                binding: 0,
-                visibility: ShaderStages::VERTEX,
-                ty: BindingType::Buffer {
-                    ty: BufferBindingType::Uniform,
-                    has_dynamic_offset: false,
-                    min_binding_size: None,
-                },
-                count: None,
-            }],
-        })
+        Self::BIND_GROUP_LAYOUT
+            .get_or_init(|| {
+                device.create_bind_group_layout(&BindGroupLayoutDescriptor {
+                    label: Some("model bind group layout"),
+                    entries: &[BindGroupLayoutEntry {
+                        binding: 0,
+                        visibility: ShaderStages::VERTEX,
+                        ty: BindingType::Buffer {
+                            ty: BufferBindingType::Uniform,
+                            has_dynamic_offset: false,
+                            min_binding_size: None,
+                        },
+                        count: None,
+                    }],
+                })
+            })
+            .clone()
     }
 
     pub fn prepare(&mut self, queue: &Queue) {
@@ -113,6 +120,15 @@ impl Model {
         render_pass.set_bind_group(1, &self.bind_group, &[]);
         for mesh in self.meshes.iter() {
             render_pass.set_bind_group(2, &mesh.bind_group, &[]);
+            render_pass.set_vertex_buffer(0, mesh.vertex_buffer.slice(..));
+            render_pass.set_index_buffer(mesh.index_buffer.slice(..), wgpu::IndexFormat::Uint16); // 1.
+            render_pass.draw_indexed(0..mesh.n_indices, 0, 0..1); // 2.
+        }
+    }
+
+    pub fn shadow_map_render(&self, render_pass: &mut RenderPass) {
+        render_pass.set_bind_group(1, &self.bind_group, &[]);
+        for mesh in self.meshes.iter() {
             render_pass.set_vertex_buffer(0, mesh.vertex_buffer.slice(..));
             render_pass.set_index_buffer(mesh.index_buffer.slice(..), wgpu::IndexFormat::Uint16); // 1.
             render_pass.draw_indexed(0..mesh.n_indices, 0, 0..1); // 2.

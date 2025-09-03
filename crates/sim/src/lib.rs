@@ -35,12 +35,18 @@ impl GameSimulation {
         }
     }
 
-    pub fn step(&mut self, adjusted_dt: f32) -> RenderSnapshot {
+    pub fn step(&mut self, adjusted_dt: f32, controller_activated: bool) -> RenderSnapshot {
         self.physics_handler.step(adjusted_dt);
 
-        let wheel_transforms =
-            self.car_handler
-                .step(adjusted_dt, &mut self.physics_handler, &self.controller);
+        let wheel_transforms = self.car_handler.step(
+            adjusted_dt,
+            &mut self.physics_handler,
+            if controller_activated {
+                Some(&self.controller)
+            } else {
+                None
+            },
+        );
 
         RenderSnapshot {
             car_transform: *self.physics_handler.rigid_bodies[self.car_handler.handle].position(),
@@ -48,8 +54,6 @@ impl GameSimulation {
             debug_string: Some("test".to_owned()),
         }
     }
-
-    /// doin car physics
 
     pub fn update_camera(&self, adjusted_dt: f32, cam: &mut Camera) {
         const CAM_EYE_LERP: f32 = 0.12;

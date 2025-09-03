@@ -127,7 +127,7 @@ impl ApplicationHandler<RenderState> for App {
                 let dt = self.fps_counter.tick();
                 let adjusted_dt = dt * 60.0;
 
-                let mut snapshot = self.sim.step(adjusted_dt);
+                let mut snapshot = self.sim.step(adjusted_dt, !self.debug_camera_activated);
 
                 if self.debug_camera_activated {
                     self.debug_camera_controller

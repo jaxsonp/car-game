@@ -11,7 +11,7 @@ pub fn get_view_projection_matrix(camera: &Camera) -> CameraUniformMatrix {
     )
     .to_homogeneous();
     return CameraUniformMatrix {
-        view_proj: (proj_matrix * view_matrix).into(),
+        view_proj: (OPENGL_TO_WGPU_MATRIX * proj_matrix * view_matrix).into(),
     };
 }
 
@@ -21,3 +21,11 @@ pub fn get_view_projection_matrix(camera: &Camera) -> CameraUniformMatrix {
 pub struct CameraUniformMatrix {
     view_proj: [[f32; 4]; 4],
 }
+
+#[rustfmt::skip]
+pub const OPENGL_TO_WGPU_MATRIX: Matrix4<f32> = Matrix4::new(
+    1.0, 0.0, 0.0, 0.0,
+    0.0, 1.0, 0.0, 0.0,
+    0.0, 0.0, 0.5, 0.0,
+    0.0, 0.0, 0.5, 1.0,
+);

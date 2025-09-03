@@ -2,18 +2,21 @@ mod camera;
 pub mod debug;
 pub mod mesh;
 mod model;
+mod shadows;
 
 use nalgebra::{Isometry3, Rotation3, Translation, Vector3};
 use utils::*;
 use wgpu::{
     BindGroupDescriptor, BindGroupEntry, BindGroupLayoutDescriptor, BindGroupLayoutEntry,
-    BindingType, BufferBindingType, BufferDescriptor, Queue, RenderPipeline, ShaderStages,
+    BindingResource, BindingType, BufferBindingType, BufferDescriptor, Queue, RenderPipeline,
+    ShaderStages,
 };
 
 use crate::DepthTexture;
 use camera::{CameraUniformMatrix, get_view_projection_matrix};
 use debug::DebugLineVertex;
 use model::Model;
+use shadows::ShadowMapper;
 
 pub struct Scene {
     mesh_render_pipeline: RenderPipeline,
@@ -22,6 +25,7 @@ pub struct Scene {
     camera_buffer: wgpu::Buffer,
     scene_bind_group: wgpu::BindGroup,
 
+    pub shadow_mapper: ShadowMapper,
     pub camera: Camera,
     pub static_models: Vec<Model>,
     pub car: Model,
@@ -30,6 +34,48 @@ pub struct Scene {
 
 impl Scene {
     pub fn new(device: &wgpu::Device, config: &wgpu::SurfaceConfiguration) -> Scene {
+        let scene_bind_group_layout = device.create_bind_group_layout(&BindGroupLayoutDescriptor {
+            label: Some("scene bind group layout"),
+            entries: &[
+                BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: ShaderStages::VERTEX,
+                    ty: BindingType::Buffer {
+                        ty: BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                },
+                BindGroupLayoutEntry {
+                    binding: 1,
+                    visibility: ShaderStages::VERTEX,
+                    ty: BindingType::Buffer {
+                        ty: BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 2,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Texture {
+                        multisampled: false,
+                        view_dimension: wgpu::TextureViewDimension::D2,
+                        sample_type: wgpu::TextureSampleType::Depth,
+                    },
+                    count: None,
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 3,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Comparison),
+                    count: None,
+                },
+            ],
+        });
+
         let camera = Camera::new(
             [8.0, 4.0, 4.0],
             [0.0, 0.0, 0.0],
@@ -43,27 +89,29 @@ impl Scene {
             size: size_of::<CameraUniformMatrix>() as u64,
             mapped_at_creation: false,
         });
+        let shadow_mapper = ShadowMapper::new(device);
 
-        let scene_bind_group_layout = device.create_bind_group_layout(&BindGroupLayoutDescriptor {
-            label: Some("scene bind group layout"),
-            entries: &[BindGroupLayoutEntry {
-                binding: 0,
-                visibility: ShaderStages::VERTEX,
-                ty: BindingType::Buffer {
-                    ty: BufferBindingType::Uniform,
-                    has_dynamic_offset: false,
-                    min_binding_size: None,
-                },
-                count: None,
-            }],
-        });
         let scene_bind_group = device.create_bind_group(&BindGroupDescriptor {
             label: Some("scene bind group"),
             layout: &scene_bind_group_layout,
-            entries: &[BindGroupEntry {
-                binding: 0,
-                resource: camera_buffer.as_entire_binding(),
-            }],
+            entries: &[
+                BindGroupEntry {
+                    binding: 0,
+                    resource: camera_buffer.as_entire_binding(),
+                },
+                BindGroupEntry {
+                    binding: 1,
+                    resource: shadow_mapper.view_proj_buffer.as_entire_binding(),
+                },
+                BindGroupEntry {
+                    binding: 2,
+                    resource: BindingResource::TextureView(&shadow_mapper.texture_view),
+                },
+                BindGroupEntry {
+                    binding: 3,
+                    resource: BindingResource::Sampler(&shadow_mapper.texture_sampler),
+                },
+            ],
         });
 
         let mesh_render_pipeline = {
@@ -218,10 +266,11 @@ impl Scene {
             camera_buffer,
             scene_bind_group,
 
-            camera,
+            shadow_mapper,
             static_models,
             car,
             wheels,
+            camera,
         }
     }
 
@@ -231,6 +280,9 @@ impl Scene {
             0,
             bytemuck::cast_slice(&[get_view_projection_matrix(&self.camera)]),
         );
+
+        self.shadow_mapper
+            .prepare(queue, snapshot.car_transform.translation.vector.into());
 
         self.wheels.iter_mut().enumerate().for_each(|(i, w)| {
             w.set_transform(snapshot.wheel_transforms[i]);
@@ -245,8 +297,8 @@ impl Scene {
 
     pub fn render<'a>(&'a self, render_pass: &mut wgpu::RenderPass<'a>) {
         render_pass.set_bind_group(0, &self.scene_bind_group, &[]);
-
         render_pass.set_pipeline(&self.mesh_render_pipeline);
+
         self.car.render(render_pass);
         self.wheels.iter().for_each(|w| w.render(render_pass));
         self.static_models
@@ -261,5 +313,15 @@ impl Scene {
         self.static_models
             .iter()
             .for_each(|m| m.render_debug_lines(render_pass));
+    }
+
+    pub fn shadow_map_render<'a>(&'a self, render_pass: &mut wgpu::RenderPass<'a>) {
+        self.car.shadow_map_render(render_pass);
+        self.wheels
+            .iter()
+            .for_each(|w| w.shadow_map_render(render_pass));
+        self.static_models
+            .iter()
+            .for_each(|m| m.shadow_map_render(render_pass));
     }
 }

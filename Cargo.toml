@@ -18,7 +18,7 @@ sim = { path = "./crates/sim" }
 utils = { path = "./crates/utils" }
 wasm-bindgen = "0.2.100"
 wgpu = { version = "26.0.1", features = ["webgl", "webgpu"] }
-winit = { version = "0.30", features = ["android-native-activity"] }
+winit = { version = "0.30" }
 
 # do some optimizations
 [profile.dev]

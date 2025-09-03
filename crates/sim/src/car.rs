@@ -33,7 +33,7 @@ impl CarHandler {
         &mut self,
         adjusted_dt: f32,
         physics: &mut PhysicsHandler,
-        controller: &CarController,
+        controller: Option<&CarController>,
     ) -> [Isometry3<f32>; 4] {
         use assets::objects::Car;
 
@@ -69,14 +69,21 @@ impl CarHandler {
         } else {
             (Car::TURN_RADIUS_SLOW, Car::TURN_SPEED_SLOW * adjusted_dt)
         };
-        if controller.a_pressed && !controller.d_pressed {
-            // left
-            self.turn_angle = self.turn_angle * (1.0 - turn_speed) + (max_turn_radius * turn_speed);
-        } else if !controller.a_pressed && controller.d_pressed {
-            // right
-            self.turn_angle =
-                self.turn_angle * (1.0 - turn_speed) + (-max_turn_radius * turn_speed);
-        } else {
+        let mut turn_inputted = false;
+        if let Some(controller) = controller {
+            if controller.a_pressed && !controller.d_pressed {
+                // left
+                self.turn_angle =
+                    self.turn_angle * (1.0 - turn_speed) + (max_turn_radius * turn_speed);
+                turn_inputted = true;
+            } else if !controller.a_pressed && controller.d_pressed {
+                // right
+                self.turn_angle =
+                    self.turn_angle * (1.0 - turn_speed) + (-max_turn_radius * turn_speed);
+                turn_inputted = true;
+            }
+        }
+        if !turn_inputted {
             // returning to center
             self.turn_angle = self.turn_angle * (1.0 - (turn_speed * 1.5));
         }
@@ -125,18 +132,20 @@ impl CarHandler {
                 car_rb.apply_impulse_at_point(grip_impulse * adjusted_dt, contact_point, false);
 
                 // drive force
-                if controller.w_pressed {
-                    car_rb.apply_impulse_at_point(
-                        forward_dir.scale(Car::ACCELERATION * adjusted_dt),
-                        contact_point,
-                        false,
-                    );
-                } else if controller.s_pressed {
-                    car_rb.apply_impulse_at_point(
-                        forward_dir.scale(-Car::ACCELERATION * 0.9 * adjusted_dt),
-                        contact_point,
-                        false,
-                    );
+                if let Some(controller) = controller {
+                    if controller.w_pressed {
+                        car_rb.apply_impulse_at_point(
+                            forward_dir.scale(Car::ACCELERATION * adjusted_dt),
+                            contact_point,
+                            false,
+                        );
+                    } else if controller.s_pressed {
+                        car_rb.apply_impulse_at_point(
+                            forward_dir.scale(-Car::ACCELERATION * 0.9 * adjusted_dt),
+                            contact_point,
+                            false,
+                        );
+                    }
                 }
 
                 return contact_point;

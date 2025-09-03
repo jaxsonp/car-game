@@ -42,6 +42,7 @@
 				const wasmModule = await init("./pkg/car_game_bg.wasm");
 
 				wasmModule.run_game();
+				console.log("Done");
 			};
 			console.debug("WASM module loaded")
 			runWasm();

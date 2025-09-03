@@ -29,20 +29,19 @@ pub struct RenderState {
 }
 
 impl RenderState {
-    // We don't need this to be async right now,
-    // but we will in the next tutorial
     pub async fn new(window: Arc<Window>) -> anyhow::Result<Self> {
         let size = window.inner_size();
 
-        // The instance is a handle to our GPU
-        // BackendBit::PRIMARY => Vulkan + Metal + DX12 + Browser WebGPU
+        // choose webgpu if available, else webgl
         let instance = wgpu::util::new_instance_with_webgpu_detection(&wgpu::InstanceDescriptor {
-            backends: wgpu::Backends::GL,
+            backends: wgpu::Backends::BROWSER_WEBGPU | wgpu::Backends::GL,
             ..Default::default()
         })
         .await;
 
-        let surface = instance.create_surface(window.clone()).unwrap_throw();
+        let surface = instance
+            .create_surface(window.clone())
+            .expect_throw("failed to create surface handle");
 
         let adapter = instance
             .request_adapter(&RequestAdapterOptions {
@@ -51,7 +50,7 @@ impl RenderState {
                 compatible_surface: Some(&surface),
             })
             .await
-            .expect_throw("No suitable adapter found");
+            .expect_throw("no suitable adapter found");
 
         let (device, queue) = adapter
             .request_device(&wgpu::DeviceDescriptor {
@@ -61,12 +60,11 @@ impl RenderState {
                 memory_hints: Default::default(),
                 trace: wgpu::Trace::Off,
             })
-            .await?;
+            .await
+            .expect_throw("failed to obtain device");
 
         let surface_caps = surface.get_capabilities(&adapter);
-        // Shader code in this tutorial assumes an sRGB surface texture. Using a different
-        // one will result in all the colors coming out darker. If you want to support non
-        // sRGB surfaces, you'll need to account for that when drawing to the frame.
+
         let surface_format = surface_caps
             .formats
             .iter()
@@ -151,6 +149,28 @@ impl RenderState {
 
         // rendering -----
         {
+            // shadow map pass
+            let mut render_pass: wgpu::RenderPass =
+                encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                    label: Some("shadow map render pass"),
+                    color_attachments: &[],
+                    depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                        view: &self.scene.shadow_mapper.texture_view,
+                        depth_ops: Some(wgpu::Operations {
+                            load: wgpu::LoadOp::Clear(1.0),
+                            store: wgpu::StoreOp::Store,
+                        }),
+                        stencil_ops: None,
+                    }),
+                    timestamp_writes: None,
+                    occlusion_query_set: None,
+                });
+            render_pass.set_pipeline(&self.scene.shadow_mapper.render_pipeline);
+            render_pass.set_bind_group(0, &self.scene.shadow_mapper.bind_group, &[]);
+            self.scene.shadow_map_render(&mut render_pass);
+        }
+
+        {
             // 3d render pass
             let mut render_pass: wgpu::RenderPass =
                 encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
@@ -179,7 +199,7 @@ impl RenderState {
             self.scene.render(&mut render_pass);
         }
 
-        if true {
+        if false {
             // overlay render pass
             let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("overlay render Pass"),
@@ -208,8 +228,6 @@ impl RenderState {
 }
 
 struct DepthTexture {
-    #[allow(dead_code)]
-    texture: wgpu::Texture,
     view: wgpu::TextureView,
 }
 impl DepthTexture {
@@ -234,6 +252,6 @@ impl DepthTexture {
         let texture = device.create_texture(&descriptor);
 
         let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
-        Self { texture, view }
+        Self { view }
     }
 }
