@@ -35,7 +35,7 @@ impl Mesh {
         let material_color_buffer = device.create_buffer_init(&BufferInitDescriptor {
             label: Some("mesh material color buffer"),
             contents: bytemuck::cast_slice(&material.color),
-            usage: BufferUsages::UNIFORM.union(BufferUsages::COPY_DST),
+            usage: BufferUsages::UNIFORM,
         });
 
         let bind_group_layout = Self::get_bind_group_layout(device);

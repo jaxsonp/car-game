@@ -8,8 +8,9 @@ use nalgebra::{Isometry3, Rotation3, Translation, Vector3};
 use utils::*;
 use wgpu::{
     BindGroupDescriptor, BindGroupEntry, BindGroupLayoutDescriptor, BindGroupLayoutEntry,
-    BindingResource, BindingType, BufferBindingType, BufferDescriptor, Queue, RenderPipeline,
-    ShaderStages,
+    BindingResource, BindingType, BufferBindingType, BufferDescriptor, BufferUsages, Queue,
+    RenderPipeline, ShaderStages,
+    util::{BufferInitDescriptor, DeviceExt},
 };
 
 use crate::DepthTexture;
@@ -49,6 +50,16 @@ impl Scene {
                 },
                 BindGroupLayoutEntry {
                     binding: 1,
+                    visibility: ShaderStages::FRAGMENT,
+                    ty: BindingType::Buffer {
+                        ty: BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                },
+                BindGroupLayoutEntry {
+                    binding: 2,
                     visibility: ShaderStages::VERTEX,
                     ty: BindingType::Buffer {
                         ty: BufferBindingType::Uniform,
@@ -58,7 +69,7 @@ impl Scene {
                     count: None,
                 },
                 wgpu::BindGroupLayoutEntry {
-                    binding: 2,
+                    binding: 3,
                     visibility: wgpu::ShaderStages::FRAGMENT,
                     ty: wgpu::BindingType::Texture {
                         multisampled: false,
@@ -68,12 +79,18 @@ impl Scene {
                     count: None,
                 },
                 wgpu::BindGroupLayoutEntry {
-                    binding: 3,
+                    binding: 4,
                     visibility: wgpu::ShaderStages::FRAGMENT,
                     ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Comparison),
                     count: None,
                 },
             ],
+        });
+
+        let sun_dir_buffer = device.create_buffer_init(&BufferInitDescriptor {
+            label: Some("scene sun dir buffer"),
+            contents: bytemuck::cast_slice(&SunDirUniform::from(ShadowMapper::SUN_DIR).val),
+            usage: BufferUsages::UNIFORM,
         });
 
         let camera = Camera::new(
@@ -101,14 +118,18 @@ impl Scene {
                 },
                 BindGroupEntry {
                     binding: 1,
-                    resource: shadow_mapper.view_proj_buffer.as_entire_binding(),
+                    resource: sun_dir_buffer.as_entire_binding(),
                 },
                 BindGroupEntry {
                     binding: 2,
-                    resource: BindingResource::TextureView(&shadow_mapper.texture_view),
+                    resource: shadow_mapper.view_proj_buffer.as_entire_binding(),
                 },
                 BindGroupEntry {
                     binding: 3,
+                    resource: BindingResource::TextureView(&shadow_mapper.texture_view),
+                },
+                BindGroupEntry {
+                    binding: 4,
                     resource: BindingResource::Sampler(&shadow_mapper.texture_sampler),
                 },
             ],
@@ -323,5 +344,19 @@ impl Scene {
         self.static_models
             .iter()
             .for_each(|m| m.shadow_map_render(render_pass));
+    }
+}
+
+#[repr(C)]
+#[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
+struct SunDirUniform {
+    pub val: [f32; 4],
+}
+impl From<Vector3<f32>> for SunDirUniform {
+    fn from(v: Vector3<f32>) -> Self {
+        let v = v.normalize();
+        SunDirUniform {
+            val: [v.x, v.y, v.z, 0.0],
+        }
     }
 }

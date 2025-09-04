@@ -19,7 +19,7 @@ pub struct ShadowMapper {
 }
 impl ShadowMapper {
     const SHADOW_MAP_DIM: u32 = 2048;
-    const DIR: Vector3<f32> = Vector3::new(-1.0, 2.0, -1.0);
+    pub const SUN_DIR: Vector3<f32> = Vector3::new(-1.0, 2.0, -1.0);
     const TEX_SIZE: Extent3d = Extent3d {
         width: Self::SHADOW_MAP_DIM,
         height: Self::SHADOW_MAP_DIM,
@@ -153,7 +153,11 @@ impl ShadowMapper {
     }
 
     fn get_view_projection_matrix(car_pos: Point3<f32>) -> Matrix4<f32> {
-        let view = Matrix4::look_at_rh(&(car_pos + (Self::DIR * 300.0)), &car_pos, &Vector3::y());
+        let view = Matrix4::look_at_rh(
+            &(car_pos + (Self::SUN_DIR * 300.0)),
+            &car_pos,
+            &Vector3::y(),
+        );
         const SIZE: f32 = 90.0;
         let proj = Orthographic3::new(-SIZE, SIZE, -SIZE, SIZE, 100.0, 700.0).to_homogeneous();
         return OPENGL_TO_WGPU_MATRIX * proj * view;

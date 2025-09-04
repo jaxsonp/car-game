@@ -2,9 +2,10 @@
 // Bind groups:
 // 0: Once per scene render
 //   0: camera matrix
-//   1: shadow map view proj matrix
-//   2: shadow map texture view
-//   3: shadow map sampler
+//   1: sun direction vector
+//   2: shadow map view proj matrix
+//   3: shadow map texture view
+//   4: shadow map sampler
 // 1: Once per model
 //   0: model transform matrix
 // 2: Once per mesh/material
@@ -15,7 +16,7 @@
 @group(0) @binding(0)
 var<uniform> camera_matrix: mat4x4<f32>;
 
-@group(0) @binding(1)
+@group(0) @binding(2)
 var<uniform> shadow_map_view_proj_matrix: mat4x4<f32>;
 
 @group(1) @binding(0)
@@ -45,16 +46,18 @@ fn vert_main(
 
 // frag shader ---------------------------------------
 
-@group(0) @binding(2)
-var shadow_map_tex: texture_depth_2d;
+@group(0) @binding(1)
+var<uniform> sun_dir: vec4<f32>;
 
 @group(0) @binding(3)
+var shadow_map_tex: texture_depth_2d;
+
+@group(0) @binding(4)
 var shadow_map_sampler: sampler_comparison;
 
 @group(2) @binding(0)
 var<uniform> diffuse_color: vec4<f32>;
 
-const sun_direction = vec3<f32>(1.0, -2.0, 1.0);
 const ambient_shade_threshold: f32 = 0.45;
 const ambient_light_strength: f32 = 0.4;
 
@@ -88,8 +91,8 @@ fn frag_main(in: VertexOutput) -> @location(0) vec4<f32> {
     var light: f32 = 0.2;
 
     let normal = normalize(in.normal);
-    let angle_from_sun = acos(dot(normal, normalize(sun_direction)));
-    if (angle_from_sun > (3.141592 * ambient_shade_threshold)) {
+    let angle_from_sun = acos(dot(normal, sun_dir.xyz));
+    if (angle_from_sun < (3.141592 * ambient_shade_threshold)) {
         // has ambient shade
         light += ambient_light_strength;
     }
