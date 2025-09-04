@@ -1,5 +1,6 @@
 mod gui;
 mod scene;
+mod uniforms;
 
 use std::sync::Arc;
 

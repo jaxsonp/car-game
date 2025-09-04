@@ -1,9 +1,11 @@
-use assets::{RawMaterial, RawMesh, RawVertex};
+use assets::{RawMesh, RawVertex};
 use wgpu::{
     BindGroupDescriptor, BindGroupLayout, BindGroupLayoutDescriptor, BindGroupLayoutEntry,
     BindingType, BufferBindingType, BufferUsages, ShaderStages,
     util::{BufferInitDescriptor, DeviceExt},
 };
+
+use crate::uniforms::Vector3Uniform;
 
 /// A single mesh with a single homogenous material
 pub struct Mesh {
@@ -31,10 +33,9 @@ impl Mesh {
             usage: BufferUsages::INDEX,
         });
 
-        let material: Material = raw.material.into();
         let material_color_buffer = device.create_buffer_init(&BufferInitDescriptor {
             label: Some("mesh material color buffer"),
-            contents: bytemuck::cast_slice(&material.color),
+            contents: bytemuck::cast_slice(&Vector3Uniform::from(raw.material.color).get_slice()),
             usage: BufferUsages::UNIFORM,
         });
 
@@ -91,20 +92,6 @@ impl From<RawVertex> for Vertex {
         Vertex {
             pos: raw.pos,
             normal: raw.normal,
-        }
-    }
-}
-
-#[repr(C)]
-#[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
-pub struct Material {
-    /// RGB
-    pub color: [f32; 4],
-}
-impl From<RawMaterial> for Material {
-    fn from(raw: RawMaterial) -> Self {
-        Material {
-            color: [raw.color[0], raw.color[1], raw.color[2], 1.0],
         }
     }
 }

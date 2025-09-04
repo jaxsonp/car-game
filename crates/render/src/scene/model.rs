@@ -9,7 +9,7 @@ use wgpu::{
 };
 
 use super::mesh::Mesh;
-use crate::scene::debug::DebugLineGroup;
+use crate::{scene::debug::DebugLineGroup, uniforms::Matrix4Uniform};
 
 /// Represents an object made up of meshes with materials with a position and rotation to be rendered.
 /// Also contains associated debug lines
@@ -21,7 +21,8 @@ pub struct Model {
 
     static_transform: Option<Isometry3<f32>>,
     new_transform: Option<Isometry3<f32>>,
-    transform_buffer: Buffer,
+    model_transform_buffer: Buffer,
+    normal_transform_buffer: Buffer,
 }
 impl Model {
     pub fn from_object<GO: GameObject>(
@@ -39,9 +40,15 @@ impl Model {
             None
         };
 
-        let transform_buffer = device.create_buffer(&BufferDescriptor {
+        let model_transform_buffer = device.create_buffer(&BufferDescriptor {
             label: Some("model transform buffer"),
-            size: size_of::<TransformUniform>() as u64,
+            size: size_of::<Matrix4Uniform>() as u64,
+            usage: BufferUsages::COPY_DST.union(BufferUsages::UNIFORM),
+            mapped_at_creation: false,
+        });
+        let normal_transform_buffer = device.create_buffer(&BufferDescriptor {
+            label: Some("normal transform buffer"),
+            size: size_of::<Matrix4Uniform>() as u64,
             usage: BufferUsages::COPY_DST.union(BufferUsages::UNIFORM),
             mapped_at_creation: false,
         });
@@ -50,10 +57,16 @@ impl Model {
         let bind_group = device.create_bind_group(&BindGroupDescriptor {
             label: Some("model bind group"),
             layout: &bind_group_layout,
-            entries: &[BindGroupEntry {
-                binding: 0,
-                resource: transform_buffer.as_entire_binding(),
-            }],
+            entries: &[
+                BindGroupEntry {
+                    binding: 0,
+                    resource: model_transform_buffer.as_entire_binding(),
+                },
+                BindGroupEntry {
+                    binding: 1,
+                    resource: normal_transform_buffer.as_entire_binding(),
+                },
+            ],
         });
 
         log::info!(
@@ -76,7 +89,8 @@ impl Model {
             bind_group,
             static_transform,
             new_transform: Some(Isometry3::identity()),
-            transform_buffer,
+            model_transform_buffer,
+            normal_transform_buffer,
         }
     }
 
@@ -86,16 +100,28 @@ impl Model {
             .get_or_init(|| {
                 device.create_bind_group_layout(&BindGroupLayoutDescriptor {
                     label: Some("model bind group layout"),
-                    entries: &[BindGroupLayoutEntry {
-                        binding: 0,
-                        visibility: ShaderStages::VERTEX,
-                        ty: BindingType::Buffer {
-                            ty: BufferBindingType::Uniform,
-                            has_dynamic_offset: false,
-                            min_binding_size: None,
+                    entries: &[
+                        BindGroupLayoutEntry {
+                            binding: 0,
+                            visibility: ShaderStages::VERTEX,
+                            ty: BindingType::Buffer {
+                                ty: BufferBindingType::Uniform,
+                                has_dynamic_offset: false,
+                                min_binding_size: None,
+                            },
+                            count: None,
                         },
-                        count: None,
-                    }],
+                        BindGroupLayoutEntry {
+                            binding: 1,
+                            visibility: ShaderStages::VERTEX,
+                            ty: BindingType::Buffer {
+                                ty: BufferBindingType::Uniform,
+                                has_dynamic_offset: false,
+                                min_binding_size: None,
+                            },
+                            count: None,
+                        },
+                    ],
                 })
             })
             .clone()
@@ -106,11 +132,17 @@ impl Model {
             if let Some(static_transform) = self.static_transform {
                 transform *= static_transform;
             };
-            let uniform: TransformUniform = transform.into();
             queue.write_buffer(
-                &self.transform_buffer,
+                &self.model_transform_buffer,
                 0,
-                bytemuck::cast_slice(&uniform.val),
+                bytemuck::cast_slice(&(Matrix4Uniform::from(transform).get_slice())),
+            );
+            queue.write_buffer(
+                &self.normal_transform_buffer,
+                0,
+                bytemuck::cast_slice(
+                    &(Matrix4Uniform::from(transform.rotation.to_homogeneous()).get_slice()),
+                ),
             );
             self.new_transform = None;
         }
@@ -144,25 +176,5 @@ impl Model {
 
     pub fn set_transform(&mut self, transform: Isometry3<f32>) {
         self.new_transform = Some(transform);
-    }
-}
-
-#[repr(C)]
-#[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
-struct TransformUniform {
-    val: [f32; 16],
-}
-impl From<Isometry3<f32>> for TransformUniform {
-    #[rustfmt::skip]
-    fn from(transform: Isometry3<f32>) -> Self {
-        let m = transform.to_homogeneous();
-        TransformUniform {
-            val: [
-                m[0], m[1], m[2], m[3],
-                m[4], m[5], m[6], m[7],
-                m[8], m[9], m[10], m[11],
-                m[12], m[13], m[14], m[15],
-            ],
-        }
     }
 }

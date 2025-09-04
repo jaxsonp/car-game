@@ -6,7 +6,7 @@ use wgpu::{
     RenderPipeline, Sampler, ShaderStages, TextureView,
 };
 
-use crate::scene::model::Model;
+use crate::{scene::model::Model, uniforms::Matrix4Uniform};
 
 pub struct ShadowMapper {
     pub view_proj_buffer: Buffer,
@@ -19,6 +19,7 @@ pub struct ShadowMapper {
 }
 impl ShadowMapper {
     const SHADOW_MAP_DIM: u32 = 2048;
+    const SHADOW_MAP_SIZE: f32 = 200.0;
     pub const SUN_DIR: Vector3<f32> = Vector3::new(-1.0, 2.0, -1.0);
     const TEX_SIZE: Extent3d = Extent3d {
         width: Self::SHADOW_MAP_DIM,
@@ -67,7 +68,7 @@ impl ShadowMapper {
         let view_proj_buffer = device.create_buffer(&BufferDescriptor {
             label: Some("shadow map view proj buffer"),
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-            size: size_of::<ViewProjUniform>() as u64,
+            size: size_of::<Matrix4<f32>>() as u64,
             mapped_at_creation: false,
         });
 
@@ -144,11 +145,11 @@ impl ShadowMapper {
     }
 
     pub fn prepare(&mut self, queue: &Queue, car_pos: Point3<f32>) {
-        let view_proj: ViewProjUniform = Self::get_view_projection_matrix(car_pos).into();
+        let view_proj = Matrix4Uniform::from(Self::get_view_projection_matrix(car_pos));
         queue.write_buffer(
             &self.view_proj_buffer,
             0,
-            bytemuck::cast_slice(&view_proj.matrix),
+            bytemuck::cast_slice(&view_proj.get_slice()),
         );
     }
 
@@ -158,28 +159,9 @@ impl ShadowMapper {
             &car_pos,
             &Vector3::y(),
         );
-        const SIZE: f32 = 90.0;
-        let proj = Orthographic3::new(-SIZE, SIZE, -SIZE, SIZE, 100.0, 700.0).to_homogeneous();
+        let size = Self::SHADOW_MAP_SIZE / 2.0;
+        let proj = Orthographic3::new(-size, size, -size, size, 200.0, 700.0).to_homogeneous();
         return OPENGL_TO_WGPU_MATRIX * proj * view;
-    }
-}
-
-#[repr(C)]
-#[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
-struct ViewProjUniform {
-    matrix: [[f32; 4]; 4],
-}
-impl From<Matrix4<f32>> for ViewProjUniform {
-    #[rustfmt::skip]
-    fn from(m: Matrix4<f32>) -> Self {
-        ViewProjUniform {
-            matrix: [
-                [m[0], m[1], m[2], m[3]],
-                [m[4], m[5], m[6], m[7]],
-                [m[8], m[9], m[10], m[11]],
-                [m[12], m[13], m[14], m[15]],
-            ],
-        }
     }
 }
 

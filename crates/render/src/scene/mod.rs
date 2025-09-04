@@ -13,7 +13,7 @@ use wgpu::{
     util::{BufferInitDescriptor, DeviceExt},
 };
 
-use crate::DepthTexture;
+use crate::{DepthTexture, uniforms::Vector3Uniform};
 use camera::{CameraUniformMatrix, get_view_projection_matrix};
 use debug::DebugLineVertex;
 use model::Model;
@@ -89,7 +89,9 @@ impl Scene {
 
         let sun_dir_buffer = device.create_buffer_init(&BufferInitDescriptor {
             label: Some("scene sun dir buffer"),
-            contents: bytemuck::cast_slice(&SunDirUniform::from(ShadowMapper::SUN_DIR).val),
+            contents: bytemuck::cast_slice(
+                &Vector3Uniform::from(ShadowMapper::SUN_DIR.normalize()).get_slice(),
+            ),
             usage: BufferUsages::UNIFORM,
         });
 
@@ -344,19 +346,5 @@ impl Scene {
         self.static_models
             .iter()
             .for_each(|m| m.shadow_map_render(render_pass));
-    }
-}
-
-#[repr(C)]
-#[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
-struct SunDirUniform {
-    pub val: [f32; 4],
-}
-impl From<Vector3<f32>> for SunDirUniform {
-    fn from(v: Vector3<f32>) -> Self {
-        let v = v.normalize();
-        SunDirUniform {
-            val: [v.x, v.y, v.z, 0.0],
-        }
     }
 }
