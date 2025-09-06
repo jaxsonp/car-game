@@ -74,10 +74,9 @@ fn frag_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let shadow_depth = shadow_coords.z;
 
     var sun_shade_factor: f32 = 0.0;
-
     if (shadow_uv.x >= 0.0 && shadow_uv.x <= 1.0 && shadow_uv.y >= 0.0 && shadow_uv.y <= 1.0) {
         // take 9 samples in a 3x3 grid
-        let sample_size = 1.15 / 2048.0;
+        let sample_size = 1.1 / 2048.0;
         sun_shade_factor = 9.0;
         for (var y: u32 = 0; y < 3; y = y + 1) {
             for (var x: u32 = 0; x < 3; x = x + 1) {
@@ -94,16 +93,16 @@ fn frag_main(in: VertexOutput) -> @location(0) vec4<f32> {
     }
 
     // using a subtractive light model cus can
-    var light: f32 = 1.2;
 
     let normal = normalize(in.normal);
     let angle_from_sun = acos(dot(normal, sun_dir.xyz));
+    var ambient_shade_factor: f32 = 0.0;
     if (angle_from_sun > (3.141592 * ambient_shade_threshold)) {
         // in ambient shade
-        light -= ambient_shade_strength;
+        ambient_shade_factor = 1.0;
     }
-    light -= sun_shade_strength * sun_shade_factor;
+    
+    let light = 1.0 - (0.5 * max(ambient_shade_factor, sun_shade_factor));
+    return vec4<f32>(diffuse_color.rgb * light, 1.0);
 
-    var color = diffuse_color.rgb;
-    return vec4<f32>(color * light, 1.0);
 }

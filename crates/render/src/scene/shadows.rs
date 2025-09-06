@@ -19,7 +19,7 @@ pub struct ShadowMapper {
 }
 impl ShadowMapper {
     const SHADOW_MAP_DIM: u32 = 2048;
-    const SHADOW_MAP_SIZE: f32 = 200.0;
+    const SHADOW_MAP_SIZE: f32 = 100.0;
     pub const SUN_DIR: Vector3<f32> = Vector3::new(-1.0, 2.0, -1.0);
     const TEX_SIZE: Extent3d = Extent3d {
         width: Self::SHADOW_MAP_DIM,
