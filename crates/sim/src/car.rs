@@ -7,6 +7,7 @@ use crate::{controller::CarController, physics::PhysicsHandler};
 pub struct CarHandler {
     pub handle: RigidBodyHandle,
     turn_angle: f32,
+    pub wheels_grounded: u32,
 }
 impl CarHandler {
     pub fn new(physics: &mut PhysicsHandler) -> CarHandler {
@@ -26,6 +27,7 @@ impl CarHandler {
         CarHandler {
             handle,
             turn_angle: 0.0,
+            wheels_grounded: 0,
         }
     }
 
@@ -41,7 +43,7 @@ impl CarHandler {
         let car_up_direction = (car_transform.rotation * Vector3::y()).normalize();
 
         // cast rays to see if tires are touching the ground
-        let mut n_wheels_grounded: u32 = 0;
+        self.wheels_grounded = 0;
         let hits = {
             let query_pipeline =
                 physics.create_query_pipeline(QueryFilter::new().exclude_rigid_body(self.handle));
@@ -53,7 +55,7 @@ impl CarHandler {
                     Car::SUSPENSION_MAX + Car::WHEEL_RADIUS,
                     false,
                 ) {
-                    n_wheels_grounded += 1;
+                    self.wheels_grounded += 1;
                     (ray, Some(hit_dist))
                 } else {
                     (ray, None)
@@ -156,7 +158,7 @@ impl CarHandler {
         });
 
         // apply downforce if car is grounded and moving fast
-        if n_wheels_grounded > 0 {
+        if self.wheels_grounded > 0 {
             let downforce = car_rb.linvel().magnitude() * Car::DOWNFORCE_COEFFICIENT * adjusted_dt;
             car_rb.apply_impulse(-up_dir.scale(downforce), false);
         }

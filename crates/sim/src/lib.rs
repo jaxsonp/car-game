@@ -67,29 +67,46 @@ impl GameSimulation {
         }
     }
 
-    pub fn update_camera(&self, adjusted_dt: f32, cam: &mut Camera) {
-        const CAM_EYE_LERP: f32 = 0.12;
+    pub fn update_camera(&mut self, adjusted_dt: f32, cam: &mut Camera) {
+        const CAM_EYE_LERP: f32 = 0.06;
         const CAM_TARGET_LERP: f32 = 0.3;
 
-        const CAM_EYE_OFFSET: Vector3<f32> = Vector3::new(0.0, 5.0, -8.0);
+        //const CAM_EYE_OFFSET: Vector3<f32> = Vector3::new(0.0, 5.0, -8.0);
+        const CAM_EYE_HEIGHT: f32 = 5.0;
+        const CAM_EYE_DIST: f32 = 6.25;
         const CAM_TARGET_OFFSET: Vector3<f32> = Vector3::new(0.0, 2.0, 0.0);
 
-        let car_rb = &self.physics_handler.rigid_bodies[self.car_handler.handle];
-        let car_transform = car_rb.position();
+        let car_transform = *self.physics_handler.rigid_bodies[self.car_handler.handle].position();
+        let car_linear_vel = *self.physics_handler.rigid_bodies[self.car_handler.handle].linvel();
 
         let forward_dir: Vector3<f32> = {
-            // NOTE using car direction or velocity direction as forward? idk yet
-            let mut v = car_transform.rotation.transform_vector(&Vector3::z());
-            //let mut v: Vector3<f32> = *car_rb.linvel();
-            v.y = 0.0;
-            v.normalize()
+            let mut car_forward = car_transform.rotation.transform_vector(&Vector3::z());
+            car_forward.y = 0.0;
+            let mut linvel_forward = car_linear_vel;
+            linvel_forward.y = 0.0;
+
+            // use linear velocity as forward direction if not grounded
+            if self.car_handler.wheels_grounded > 2 || linvel_forward.magnitude() < 0.5 {
+                car_forward
+            } else {
+                linvel_forward
+            }
+            .normalize()
         };
-        let target_eye_offset: Point3<f32> =
-            UnitQuaternion::face_towards(&forward_dir, &Vector3::y())
-                .transform_point(&CAM_EYE_OFFSET.into());
-        let target_eye: Point3<f32> = car_transform
-            .translation
-            .transform_point(&target_eye_offset);
+        let mut target_eye: Point3<f32> =
+            car_transform.translation * Point3::new(0.0, CAM_EYE_HEIGHT, 0.0);
+        // casting ray backwards
+        let dist = if let Some((_, dist)) = self
+            .physics_handler
+            .create_query_pipeline(QueryFilter::new().exclude_rigid_body(self.car_handler.handle))
+            .cast_ray(&Ray::new(target_eye, -forward_dir), CAM_EYE_DIST, true)
+        {
+            dist
+        } else {
+            CAM_EYE_DIST
+        };
+        target_eye -= forward_dir * dist;
+
         cam.eye = cam.eye.lerp(&target_eye, CAM_EYE_LERP * adjusted_dt);
 
         let target_target: Point3<f32> =
