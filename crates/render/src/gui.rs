@@ -25,7 +25,7 @@ impl GuiOverlay {
 
         let fps_text = TextBox::new(
             (5.0, 5.0),
-            (150.0, 35.0),
+            (180.0, 35.0),
             HorizontalAlign::Left,
             VerticalAlign::Top,
             "FPS",

@@ -19,11 +19,10 @@ pub struct RenderState {
     queue: wgpu::Queue,
     config: wgpu::SurfaceConfiguration,
     is_surface_configured: bool,
+    depth_texture: DepthTexture,
 
     pub scene: Scene,
     pub gui: GuiOverlay,
-
-    depth_texture: DepthTexture,
 
     // needs to be last
     pub window: Arc<Window>,
@@ -94,10 +93,10 @@ impl RenderState {
             queue,
             config,
             is_surface_configured: false,
-            window,
+            depth_texture,
             scene,
             gui,
-            depth_texture,
+            window,
         })
     }
 
@@ -121,13 +120,13 @@ impl RenderState {
 
     pub fn handle_window_event(&mut self, _event: &WindowEvent) {}
 
-    pub fn render(&mut self, snapshot: RenderSnapshot) -> Result<(), wgpu::SurfaceError> {
+    pub fn render(&mut self, snapshot: Option<RenderSnapshot>) -> Result<(), wgpu::SurfaceError> {
         self.window.request_redraw();
 
-        // We can't render unless the surface is configured
-        if !self.is_surface_configured {
+        if !self.is_surface_configured || snapshot.is_none() {
             return Ok(());
         }
+        let snapshot = snapshot.unwrap();
 
         // preparation -----
 

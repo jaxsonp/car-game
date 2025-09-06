@@ -3,7 +3,6 @@ mod framerate;
 
 use std::sync::Arc;
 
-use instant::Duration;
 use render::RenderState;
 use sim::GameSimulation;
 use wasm_bindgen::prelude::*;
@@ -41,6 +40,8 @@ pub fn run_game() -> Result<(), wasm_bindgen::JsValue> {
 pub struct App {
     proxy: Option<winit::event_loop::EventLoopProxy<RenderState>>,
     render_state: Option<RenderState>,
+    //last_render_snapshot: RenderSnapshot,
+    focused: bool,
     sim: GameSimulation,
     fps_counter: FramerateCounter,
 
@@ -51,11 +52,12 @@ pub struct App {
 impl App {
     pub fn new(event_loop: &EventLoop<RenderState>) -> Self {
         let proxy = Some(event_loop.create_proxy());
-        let fps_counter = FramerateCounter::new(Duration::from_millis(500));
+        let fps_counter = FramerateCounter::new(100);
         Self {
             proxy,
             render_state: None,
             sim: GameSimulation::new(),
+            focused: true,
             fps_counter,
             debug_camera_activated: false,
             debug_camera_controller: DebugCameraController::new(),
@@ -65,7 +67,7 @@ impl App {
 
 impl ApplicationHandler<RenderState> for App {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
-        log::trace!("Application resumed");
+        log::debug!("Application resumed");
         let mut window_attributes = Window::default_attributes();
 
         use wasm_bindgen::JsCast;
@@ -124,34 +126,41 @@ impl ApplicationHandler<RenderState> for App {
             WindowEvent::RedrawRequested => {
                 // where the magic happens
 
+                // delta time in seconds
                 let dt = self.fps_counter.tick();
-                let adjusted_dt = dt * 60.0;
+                let render_snapshot = if self.focused {
+                    // delta time in expected frame time (60fps)
+                    let adjusted_dt = dt * 60.0;
 
-                let mut snapshot = self.sim.step(adjusted_dt, !self.debug_camera_activated);
+                    let mut snapshot = self.sim.step(adjusted_dt, !self.debug_camera_activated);
 
-                if self.debug_camera_activated {
-                    self.debug_camera_controller
-                        .update_camera(adjusted_dt, &mut render_state.scene.camera);
-                } else {
-                    self.sim
-                        .update_camera(adjusted_dt, &mut render_state.scene.camera);
-                }
-
-                snapshot.debug_string = Some(
                     if self.debug_camera_activated {
-                        "[debug cam]\n"
+                        self.debug_camera_controller
+                            .update_camera(adjusted_dt, &mut render_state.scene.camera);
                     } else {
-                        "[car cam]\n"
+                        self.sim
+                            .update_camera(adjusted_dt, &mut render_state.scene.camera);
                     }
-                    .to_string()
-                        + &snapshot.debug_string.unwrap_or_default(),
-                );
 
+                    if self.debug_camera_activated {
+                        snapshot.debug_string = Some(
+                            "[debug cam]\n".to_string()
+                                + &snapshot.debug_string.unwrap_or_default(),
+                        );
+                    }
+
+                    render_state
+                        .gui
+                        .fps_text
+                        .change_text(format!("FPS: {:.0}", self.fps_counter.fps()));
+
+                    Some(snapshot)
+                } else {
+                    None
+                };
                 render_state
-                    .gui
-                    .fps_text
-                    .change_text(format!("FPS: {}", self.fps_counter.fps));
-                render_state.render(snapshot).expect_throw("Render failed");
+                    .render(render_snapshot)
+                    .expect_throw("Render failed");
             }
             WindowEvent::KeyboardInput {
                 event:
@@ -169,13 +178,17 @@ impl ApplicationHandler<RenderState> for App {
                         event_loop.exit()
                     }
                     (KeyCode::Tab, true) => {
-                        log::info!("Switched camera mode");
+                        log::debug!("Switched camera mode");
                         self.debug_camera_activated = !self.debug_camera_activated;
                     }
                     _ => {}
                 }
                 self.debug_camera_controller.handle_key_event(code, pressed);
                 self.sim.controller.handle_key_event(code, pressed);
+            }
+            WindowEvent::Focused(focused) => {
+                self.focused = focused;
+                log::debug!("Focused: {focused}");
             }
             _ => {}
         }
