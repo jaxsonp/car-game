@@ -1,0 +1,6 @@
+{
+	"rust-analyzer.files.exclude": [
+		"target",
+	],
+	"rust-analyzer.checkOnSave": false
+}

@@ -200,7 +200,7 @@ impl RenderState {
             self.scene.render(&mut render_pass);
         }
 
-        if false {
+        {
             // overlay render pass
             let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("overlay render Pass"),

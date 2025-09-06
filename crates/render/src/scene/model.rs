@@ -153,8 +153,8 @@ impl Model {
         for mesh in self.meshes.iter() {
             render_pass.set_bind_group(2, &mesh.bind_group, &[]);
             render_pass.set_vertex_buffer(0, mesh.vertex_buffer.slice(..));
-            render_pass.set_index_buffer(mesh.index_buffer.slice(..), wgpu::IndexFormat::Uint16); // 1.
-            render_pass.draw_indexed(0..mesh.n_indices, 0, 0..1); // 2.
+            render_pass.set_index_buffer(mesh.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
+            render_pass.draw_indexed(0..mesh.n_indices, 0, 0..1);
         }
     }
 
@@ -162,8 +162,8 @@ impl Model {
         render_pass.set_bind_group(1, &self.bind_group, &[]);
         for mesh in self.meshes.iter() {
             render_pass.set_vertex_buffer(0, mesh.vertex_buffer.slice(..));
-            render_pass.set_index_buffer(mesh.index_buffer.slice(..), wgpu::IndexFormat::Uint16); // 1.
-            render_pass.draw_indexed(0..mesh.n_indices, 0, 0..1); // 2.
+            render_pass.set_index_buffer(mesh.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
+            render_pass.draw_indexed(0..mesh.n_indices, 0, 0..1);
         }
     }
 

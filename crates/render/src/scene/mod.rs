@@ -280,6 +280,7 @@ impl Scene {
         let static_models: Vec<Model> = vec![
             Model::from_object::<assets::objects::Ground>("Ground", device, None),
             Model::from_object::<assets::objects::Roads>("Roads", device, None),
+            Model::from_object::<assets::objects::WorldDecor>("Decor", device, None),
             Model::from_object::<assets::objects::Ocean>("Ocean", device, None),
         ];
 
@@ -328,6 +329,7 @@ impl Scene {
             .iter()
             .for_each(|m| m.render(render_pass));
 
+        return;
         render_pass.set_pipeline(&self.debug_render_pipeline);
         self.car.render_debug_lines(render_pass);
         self.wheels

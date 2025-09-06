@@ -84,7 +84,9 @@ fn emit_parsed_obj(meshes: Vec<(OBJMaterial, OBJMesh)>, file_path: PathBuf) -> s
         output.write(b"\t\t],\n")?;
         output.write(b"\t\tindices: &[\n")?;
         for face in mesh.faces {
-            output.write(format!("\t\t\t{}, {}, {},\n", face[0], face[1], face[2]).as_bytes())?;
+            output.write(
+                format!("\t\t\t{}u32, {}u32, {}u32,\n", face[0], face[1], face[2]).as_bytes(),
+            )?;
         }
         output.write(b"\t\t],\n")?;
         output.write(
