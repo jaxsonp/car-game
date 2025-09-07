@@ -3,7 +3,7 @@ mod controller;
 mod physics;
 
 use assets::GameObject;
-use nalgebra::{Point3, UnitQuaternion, Vector3};
+use nalgebra::{Point3, Vector3};
 use rapier3d::prelude::*;
 use utils::*;
 
@@ -63,7 +63,15 @@ impl GameSimulation {
         RenderSnapshot {
             car_transform: *self.physics_handler.rigid_bodies[self.car_handler.handle].position(),
             wheel_transforms,
-            debug_string: Some("test".to_owned()),
+            debug_string: Some(format!(
+                "turn: {:?}\ndrive: {:?}\nthrottle: {:.1}\nspeed: {:.1}",
+                self.car_handler.turn_input,
+                self.car_handler.drive_input,
+                self.car_handler.throttle,
+                self.physics_handler.rigid_bodies[self.car_handler.handle]
+                    .linvel()
+                    .magnitude()
+            )),
         }
     }
 
@@ -74,7 +82,7 @@ impl GameSimulation {
         //const CAM_EYE_OFFSET: Vector3<f32> = Vector3::new(0.0, 5.0, -8.0);
         const CAM_EYE_HEIGHT: f32 = 5.0;
         const CAM_EYE_DIST: f32 = 6.25;
-        const CAM_TARGET_OFFSET: Vector3<f32> = Vector3::new(0.0, 2.0, 0.0);
+        const CAM_TARGET_HEIGHT: f32 = 2.0;
 
         let car_transform = *self.physics_handler.rigid_bodies[self.car_handler.handle].position();
         let car_linear_vel = *self.physics_handler.rigid_bodies[self.car_handler.handle].linvel();
@@ -110,7 +118,7 @@ impl GameSimulation {
         cam.eye = cam.eye.lerp(&target_eye, CAM_EYE_LERP * adjusted_dt);
 
         let target_target: Point3<f32> =
-            (car_transform.translation.vector + CAM_TARGET_OFFSET).into();
+            (car_transform.translation.vector + Vector3::new(0.0, CAM_TARGET_HEIGHT, 0.0)).into();
         cam.target = cam
             .target
             .lerp(&target_target, CAM_TARGET_LERP * adjusted_dt);

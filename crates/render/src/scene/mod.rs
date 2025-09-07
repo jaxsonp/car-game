@@ -1,4 +1,5 @@
 mod camera;
+#[cfg(debug_assertions)]
 pub mod debug;
 pub mod mesh;
 mod model;
@@ -15,12 +16,14 @@ use wgpu::{
 
 use crate::{DepthTexture, uniforms::Vector3Uniform};
 use camera::{CameraUniformMatrix, get_view_projection_matrix};
+#[cfg(debug_assertions)]
 use debug::DebugLineVertex;
 use model::Model;
-use shadows::ShadowMapper;
+use shadows::{SUN_DIR, ShadowMapper};
 
 pub struct Scene {
     mesh_render_pipeline: RenderPipeline,
+    #[cfg(debug_assertions)]
     debug_render_pipeline: RenderPipeline,
 
     camera_buffer: wgpu::Buffer,
@@ -89,9 +92,7 @@ impl Scene {
 
         let sun_dir_buffer = device.create_buffer_init(&BufferInitDescriptor {
             label: Some("scene sun dir buffer"),
-            contents: bytemuck::cast_slice(
-                &Vector3Uniform::from(ShadowMapper::SUN_DIR.normalize()).get_slice(),
-            ),
+            contents: bytemuck::cast_slice(&Vector3Uniform::from(SUN_DIR.normalize()).get_slice()),
             usage: BufferUsages::UNIFORM,
         });
 
@@ -197,6 +198,7 @@ impl Scene {
             })
         };
 
+        #[cfg(debug_assertions)]
         let debug_render_pipeline = {
             let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
                 label: Some("scene debug shader"),
@@ -286,6 +288,7 @@ impl Scene {
 
         Scene {
             mesh_render_pipeline,
+            #[cfg(debug_assertions)]
             debug_render_pipeline,
             camera_buffer,
             scene_bind_group,
@@ -329,15 +332,17 @@ impl Scene {
             .iter()
             .for_each(|m| m.render(render_pass));
 
-        return;
-        render_pass.set_pipeline(&self.debug_render_pipeline);
-        self.car.render_debug_lines(render_pass);
-        self.wheels
-            .iter()
-            .for_each(|w| w.render_debug_lines(render_pass));
-        self.static_models
-            .iter()
-            .for_each(|m| m.render_debug_lines(render_pass));
+        #[cfg(debug_assertions)]
+        {
+            render_pass.set_pipeline(&self.debug_render_pipeline);
+            self.car.render_debug_lines(render_pass);
+            self.wheels
+                .iter()
+                .for_each(|w| w.render_debug_lines(render_pass));
+            self.static_models
+                .iter()
+                .for_each(|m| m.render_debug_lines(render_pass));
+        }
     }
 
     pub fn shadow_map_render<'a>(&'a self, render_pass: &mut wgpu::RenderPass<'a>) {

@@ -9,13 +9,16 @@ use wgpu::{
 };
 
 use super::mesh::Mesh;
-use crate::{scene::debug::DebugLineGroup, uniforms::Matrix4Uniform};
+#[cfg(debug_assertions)]
+use crate::scene::debug::DebugLineGroup;
+use crate::uniforms::Matrix4Uniform;
 
 /// Represents an object made up of meshes with materials with a position and rotation to be rendered.
 /// Also contains associated debug lines
 pub struct Model {
     _name: String,
     meshes: Vec<Mesh>,
+    #[cfg(debug_assertions)]
     debug_lines: Option<DebugLineGroup>,
     bind_group: BindGroup,
 
@@ -34,6 +37,7 @@ impl Model {
             .into_iter()
             .map(|raw| Mesh::from_raw(*raw, device))
             .collect();
+        #[cfg(debug_assertions)]
         let debug_lines = if GO::debug_lines.len() > 0 {
             Some(DebugLineGroup::from_raw(device, GO::debug_lines))
         } else {
@@ -85,6 +89,7 @@ impl Model {
         Model {
             _name: name.into(),
             meshes,
+            #[cfg(debug_assertions)]
             debug_lines,
             bind_group,
             static_transform,
@@ -167,6 +172,7 @@ impl Model {
         }
     }
 
+    #[cfg(debug_assertions)]
     pub fn render_debug_lines(&self, render_pass: &mut RenderPass) {
         if let Some(debug_lines) = &self.debug_lines {
             render_pass.set_bind_group(1, &self.bind_group, &[]);

@@ -4,38 +4,6 @@ use crate::*;
 
 pub struct Car {}
 impl Car {
-    pub const MASS: f32 = 1600.0;
-
-    pub const ACCELERATION: f32 = 50.0;
-
-    pub const SLOW_FAST_THRESH: f32 = 20.0;
-
-    pub const TURN_RADIUS_SLOW: f32 = 28f32.to_radians();
-    pub const TURN_RADIUS_FAST: f32 = 12f32.to_radians();
-
-    pub const TURN_SPEED_SLOW: f32 = 4.5f32.to_radians();
-    pub const TURN_SPEED_FAST: f32 = 3f32.to_radians();
-
-    /// max extension of the suspension
-    pub const SUSPENSION_MAX: f32 = 0.3;
-    /// Suspension spring constant
-    pub const SUSPENSION_STIFFNESS: f32 = 800.0;
-    /// Suspension spring damper constant
-    pub const SUSPENSION_DAMPER: f32 = 30.0;
-
-    pub fn suspension_compression_curve(val: f32) -> f32 {
-        // val: [0, 1.0]
-        // nonlinear spring force
-        val.powf(2.5)
-    }
-
-    pub const DOWNFORCE_COEFFICIENT: f32 = 8.0;
-
-    pub const WHEEL_DIAMETER: f32 = 0.636653;
-    pub const WHEEL_RADIUS: f32 = Self::WHEEL_DIAMETER / 2.0;
-    /// Tire grip coefficient
-    pub const WHEEL_GRIP: f32 = 18.0;
-
     // wheel positions
     const WHEEL_OFFSET_FRONT_DRIVER: [f32; 3] = [0.586441, 0.311319, 1.10437];
     const WHEEL_OFFSET_FRONT_PASSENGER: [f32; 3] = [
@@ -114,10 +82,10 @@ impl GameObject for Car {
         Self::HITBOX_PARTS.1[5] => Self::HITBOX_PARTS.1[11];
         Self::HITBOX_PARTS.1[0] => Self::HITBOX_PARTS.1[6];
         // wheel axes
-        Self::WHEEL_OFFSET_FRONT_DRIVER =>      {let mut p = Self::WHEEL_OFFSET_FRONT_DRIVER; p[1] -= Self::SUSPENSION_MAX; p};
-        Self::WHEEL_OFFSET_FRONT_PASSENGER =>   {let mut p = Self::WHEEL_OFFSET_FRONT_PASSENGER; p[1] -= Self::SUSPENSION_MAX; p};
-        Self::WHEEL_OFFSET_REAR_DRIVER =>       {let mut p = Self::WHEEL_OFFSET_REAR_DRIVER; p[1] -= Self::SUSPENSION_MAX; p};
-        Self::WHEEL_OFFSET_REAR_PASSENGER =>    {let mut p = Self::WHEEL_OFFSET_REAR_PASSENGER; p[1] -= Self::SUSPENSION_MAX; p};
+        Self::WHEEL_OFFSET_FRONT_DRIVER =>      {let mut p = Self::WHEEL_OFFSET_FRONT_DRIVER; p[1] -= 0.5; p};
+        Self::WHEEL_OFFSET_FRONT_PASSENGER =>   {let mut p = Self::WHEEL_OFFSET_FRONT_PASSENGER; p[1] -= 0.5; p};
+        Self::WHEEL_OFFSET_REAR_DRIVER =>       {let mut p = Self::WHEEL_OFFSET_REAR_DRIVER; p[1] -= 0.5; p};
+        Self::WHEEL_OFFSET_REAR_PASSENGER =>    {let mut p = Self::WHEEL_OFFSET_REAR_PASSENGER; p[1] -= 0.5; p};
 
     };
 

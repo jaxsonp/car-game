@@ -8,6 +8,8 @@ use wgpu::{
 
 use crate::{scene::model::Model, uniforms::Matrix4Uniform};
 
+pub const SUN_DIR: Vector3<f32> = Vector3::new(-1.0, 2.5, 1.2);
+
 pub struct ShadowMapper {
     pub view_proj_buffer: Buffer,
 
@@ -20,7 +22,6 @@ pub struct ShadowMapper {
 impl ShadowMapper {
     const SHADOW_MAP_DIM: u32 = 2048;
     const SHADOW_MAP_SIZE: f32 = 100.0;
-    pub const SUN_DIR: Vector3<f32> = Vector3::new(-1.0, 2.0, -1.0);
     const TEX_SIZE: Extent3d = Extent3d {
         width: Self::SHADOW_MAP_DIM,
         height: Self::SHADOW_MAP_DIM,
@@ -154,11 +155,7 @@ impl ShadowMapper {
     }
 
     fn get_view_projection_matrix(car_pos: Point3<f32>) -> Matrix4<f32> {
-        let view = Matrix4::look_at_rh(
-            &(car_pos + (Self::SUN_DIR * 300.0)),
-            &car_pos,
-            &Vector3::y(),
-        );
+        let view = Matrix4::look_at_rh(&(car_pos + (SUN_DIR * 300.0)), &car_pos, &Vector3::y());
         let size = Self::SHADOW_MAP_SIZE / 2.0;
         let proj = Orthographic3::new(-size, size, -size, size, 200.0, 700.0).to_homogeneous();
         return OPENGL_TO_WGPU_MATRIX * proj * view;

@@ -5,6 +5,7 @@ pub struct CarController {
     pub a_pressed: bool,
     pub s_pressed: bool,
     pub d_pressed: bool,
+    pub shift_pressed: bool,
 }
 impl CarController {
     pub fn new() -> Self {
@@ -13,6 +14,7 @@ impl CarController {
             a_pressed: false,
             s_pressed: false,
             d_pressed: false,
+            shift_pressed: false,
         }
     }
 
@@ -22,6 +24,7 @@ impl CarController {
             KeyCode::KeyA => self.a_pressed = pressed,
             KeyCode::KeyS => self.s_pressed = pressed,
             KeyCode::KeyD => self.d_pressed = pressed,
+            KeyCode::ShiftLeft => self.shift_pressed = pressed,
             _ => {}
         }
     }
