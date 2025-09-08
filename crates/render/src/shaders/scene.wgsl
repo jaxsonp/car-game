@@ -62,9 +62,6 @@ var shadow_map_sampler: sampler_comparison;
 @group(2) @binding(0)
 var<uniform> diffuse_color: vec4<f32>;
 
-const ambient_shade_threshold: f32 = 0.47;
-const ambient_shade_strength: f32 = 0.45;
-const sun_shade_strength: f32 = 0.45;
 
 @fragment
 fn frag_main(in: VertexOutput) -> @location(0) vec4<f32> {
@@ -92,12 +89,10 @@ fn frag_main(in: VertexOutput) -> @location(0) vec4<f32> {
         sun_shade_factor /= 9.0;
     }
 
-    // using a subtractive light model cus can
-
     let normal = normalize(in.normal);
     let angle_from_sun = acos(dot(normal, sun_dir.xyz));
     var ambient_shade_factor: f32 = 0.0;
-    if (angle_from_sun > (3.141592 * ambient_shade_threshold)) {
+    if (angle_from_sun > (3.141592 * 0.47)) {
         // in ambient shade
         ambient_shade_factor = 1.0;
     }

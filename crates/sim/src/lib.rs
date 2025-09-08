@@ -50,7 +50,7 @@ impl GameSimulation {
     pub fn step(&mut self, adjusted_dt: f32, controller_activated: bool) -> RenderSnapshot {
         self.physics_handler.step(adjusted_dt);
 
-        let wheel_transforms = self.car_handler.step(
+        let (wheel_transforms, skid_contact_points) = self.car_handler.step(
             adjusted_dt,
             &mut self.physics_handler,
             if controller_activated {
@@ -63,6 +63,7 @@ impl GameSimulation {
         RenderSnapshot {
             car_transform: *self.physics_handler.rigid_bodies[self.car_handler.handle].position(),
             wheel_transforms,
+            skid_contact_points,
             debug_string: Some(format!(
                 "turn: {:?}\ndrive: {:?}\nthrottle: {:.1}\nspeed: {:.1}",
                 self.car_handler.turn_input,

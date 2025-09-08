@@ -40,7 +40,6 @@ pub fn run_game() -> Result<(), wasm_bindgen::JsValue> {
 pub struct App {
     proxy: Option<winit::event_loop::EventLoopProxy<RenderState>>,
     render_state: Option<RenderState>,
-    //last_render_snapshot: RenderSnapshot,
     focused: bool,
     sim: GameSimulation,
     fps_counter: FramerateCounter,
@@ -52,7 +51,7 @@ pub struct App {
 impl App {
     pub fn new(event_loop: &EventLoop<RenderState>) -> Self {
         let proxy = Some(event_loop.create_proxy());
-        let fps_counter = FramerateCounter::new(100);
+        let fps_counter = FramerateCounter::new(40);
         Self {
             proxy,
             render_state: None,

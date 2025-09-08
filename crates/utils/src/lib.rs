@@ -4,6 +4,7 @@ pub struct RenderSnapshot {
     pub car_transform: Isometry3<f32>,
     /// How far below offset each wheel is (front-driver, front-pass, rear-driver, rear-pass)
     pub wheel_transforms: [Isometry3<f32>; 4],
+    pub skid_contact_points: [Option<Point3<f32>>; 4],
     pub debug_string: Option<String>,
 }
 

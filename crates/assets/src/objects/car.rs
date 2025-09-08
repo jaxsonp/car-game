@@ -87,6 +87,9 @@ impl GameObject for Car {
         Self::WHEEL_OFFSET_REAR_DRIVER =>       {let mut p = Self::WHEEL_OFFSET_REAR_DRIVER; p[1] -= 0.5; p};
         Self::WHEEL_OFFSET_REAR_PASSENGER =>    {let mut p = Self::WHEEL_OFFSET_REAR_PASSENGER; p[1] -= 0.5; p};
 
+        // marker
+        [0.0, 0.0, 0.0] => [0.0, 2.0, 0.0];
+
     };
 
     fn get_collision_box() -> ColliderBuilder {
