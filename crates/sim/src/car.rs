@@ -4,9 +4,9 @@ use rapier3d::prelude::*;
 
 use crate::{controller::CarController, physics::PhysicsHandler};
 
-const MASS: f32 = 1800.0;
+const MASS: f32 = 2400.0;
 
-const ACCELERATION: f32 = 90.0;
+const ACCELERATION: f32 = 120.0;
 
 const SLOW_FAST_THRESH: f32 = 22.0;
 
@@ -31,12 +31,12 @@ fn suspension_compression_curve(val: f32) -> f32 {
 const DRAG_COEFFICIENT: f32 = 0.004;
 const DOWNFORCE_COEFFICIENT: f32 = 17.0;
 
-const MAX_FRICTION: f32 = 140.0;
+const MAX_FRICTION: f32 = 180.0;
 
 const WHEEL_DIAMETER: f32 = 0.636653;
 const WHEEL_RADIUS: f32 = WHEEL_DIAMETER / 2.0;
 /// Tire grip coefficient
-const WHEEL_GRIP: f32 = 600.0;
+const WHEEL_GRIP: f32 = 800.0;
 
 pub struct CarHandler {
     pub handle: RigidBodyHandle,

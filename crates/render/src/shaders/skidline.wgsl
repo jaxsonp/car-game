@@ -32,9 +32,7 @@ fn vert_main(
 
 // frag shader ---------------------------------------
 
-const col: f32 = 0.005;
-
 @fragment
 fn frag_main(in: VertexOutput) -> @location(0) vec4<f32> {
-    return vec4(col, col, col, 0.8);
+    return vec4(0.0, 0.0, 0.0, 0.7);
 }

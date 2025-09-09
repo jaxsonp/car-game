@@ -95,7 +95,7 @@ impl GameSimulation {
             linvel_forward.y = 0.0;
 
             // use linear velocity as forward direction if not grounded
-            if self.car_handler.wheels_grounded > 2 || linvel_forward.magnitude() < 0.5 {
+            if self.car_handler.wheels_grounded > 1 || linvel_forward.magnitude() < 0.5 {
                 car_forward
             } else {
                 linvel_forward

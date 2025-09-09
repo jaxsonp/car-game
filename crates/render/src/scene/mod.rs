@@ -10,8 +10,8 @@ use nalgebra::{Isometry3, Rotation3, Translation, Vector3};
 use utils::*;
 use wgpu::{
     BindGroupDescriptor, BindGroupEntry, BindGroupLayoutDescriptor, BindGroupLayoutEntry,
-    BindingResource, BindingType, BufferBindingType, BufferDescriptor, BufferUsages, Queue,
-    RenderPipeline, ShaderStages,
+    BindingResource, BindingType, BlendComponent, BlendFactor, BlendOperation, BufferBindingType,
+    BufferDescriptor, BufferUsages, Queue, RenderPipeline, ShaderStages,
     util::{BufferInitDescriptor, DeviceExt},
 };
 
@@ -227,7 +227,15 @@ impl Scene {
                     entry_point: None,
                     targets: &[Some(wgpu::ColorTargetState {
                         format: config.format,
-                        blend: Some(wgpu::BlendState::REPLACE),
+                        blend: Some(wgpu::BlendState {
+                            // transparent
+                            color: BlendComponent::OVER,
+                            alpha: BlendComponent {
+                                src_factor: BlendFactor::Zero,
+                                dst_factor: BlendFactor::One,
+                                operation: BlendOperation::Add,
+                            },
+                        }),
                         write_mask: wgpu::ColorWrites::ALL,
                     })],
                     compilation_options: wgpu::PipelineCompilationOptions::default(),
