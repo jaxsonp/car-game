@@ -6,6 +6,7 @@ use std::sync::Arc;
 use render::RenderState;
 use sim::GameSimulation;
 use wasm_bindgen::prelude::*;
+use web_sys::js_sys::JsString;
 use winit::{
     application::ApplicationHandler,
     event::*,
@@ -17,10 +18,8 @@ use winit::{
 use debug_controller::DebugCameraController;
 use framerate::FramerateCounter;
 
-const CANVAS_ID: &str = "main-canvas";
-
 #[wasm_bindgen]
-pub fn run_game() -> Result<(), wasm_bindgen::JsValue> {
+pub fn run_game(canvas_id: JsString) -> Result<(), wasm_bindgen::JsValue> {
     console_error_panic_hook::set_once();
     console_log::init_with_level(log::Level::Debug)
         .expect_throw("Failed to initialize console logging");
@@ -29,7 +28,7 @@ pub fn run_game() -> Result<(), wasm_bindgen::JsValue> {
     let event_loop = EventLoop::with_user_event()
         .build()
         .expect_throw("Failed to create event loop");
-    let mut app = App::new(&event_loop);
+    let mut app = App::new(&event_loop, canvas_id.as_string().unwrap());
     event_loop
         .run_app(&mut app)
         .expect_throw("Failure during event loop");
@@ -38,6 +37,7 @@ pub fn run_game() -> Result<(), wasm_bindgen::JsValue> {
 }
 
 pub struct App {
+    canvas_id: String,
     proxy: Option<winit::event_loop::EventLoopProxy<RenderState>>,
     render_state: Option<RenderState>,
     focused: bool,
@@ -49,10 +49,11 @@ pub struct App {
 }
 
 impl App {
-    pub fn new(event_loop: &EventLoop<RenderState>) -> Self {
+    pub fn new(event_loop: &EventLoop<RenderState>, canvas_id: String) -> Self {
         let proxy = Some(event_loop.create_proxy());
         let fps_counter = FramerateCounter::new(40);
         Self {
+            canvas_id,
             proxy,
             render_state: None,
             sim: GameSimulation::new(),
@@ -75,7 +76,7 @@ impl ApplicationHandler<RenderState> for App {
         let window = wgpu::web_sys::window().expect_throw("Failed to get window");
         let document = window.document().expect_throw("Failed to get document");
         let canvas = document
-            .get_element_by_id(CANVAS_ID)
+            .get_element_by_id(self.canvas_id.as_str())
             .expect_throw("Failed to find canvas in document");
         let html_canvas_element = canvas.unchecked_into();
         window_attributes = window_attributes.with_canvas(Some(html_canvas_element));

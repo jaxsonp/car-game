@@ -15,37 +15,6 @@
 	</head>
 	<body>
 		<canvas id="main-canvas"></canvas>
-		<script type="module">
-			const canvas = document.getElementById("main-canvas");
-
-			const updateCanvasDPR = () => {
-				const dpr = window.devicePixelRatio;
-				const maxPixelSize = 2048 / dpr;
-				canvas.style.width = `min(100%, ${maxPixelSize}px)`
-				canvas.style.height = `min(100%, ${maxPixelSize}px)`
-			};
-
-			updateCanvasDPR();
-			(function listenForDPRChange() {
-				const onChange = () => {
-					updateCanvasDPR();
-					listenForDPRChange();
-				}
-				matchMedia(
-					`(resolution: ${window.devicePixelRatio}dppx)`
-				).addEventListener("change", onChange, { once: true });
-			})();
-
-			import init from "./pkg/car_game.js";
-
-			const runWasm = async () => {
-				const wasmModule = await init("./pkg/car_game_bg.wasm");
-
-				wasmModule.run_game();
-				console.log("Done");
-			};
-			console.debug("WASM module loaded")
-			runWasm();
-		</script>
+		<script type="module" src="run_game.js"></script>
 	</body>
 </html>
