@@ -14,5 +14,4 @@ nalgebra = { workspace = true }
 utils = { workspace = true }
 wasm-bindgen = { workspace = true }
 wgpu = { workspace = true }
-wgpu_text = "26.0.0"
 winit = { workspace = true } 

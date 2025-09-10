@@ -1,4 +1,3 @@
-mod gui;
 mod scene;
 mod uniforms;
 
@@ -9,7 +8,6 @@ use wasm_bindgen::prelude::*;
 use wgpu::RequestAdapterOptions;
 use winit::{event::WindowEvent, window::Window};
 
-use gui::GuiOverlay;
 use scene::Scene;
 
 /// Main rendering object
@@ -22,7 +20,6 @@ pub struct RenderState {
     depth_texture: DepthTexture,
 
     pub scene: Scene,
-    pub gui: GuiOverlay,
 
     // needs to be last
     pub window: Arc<Window>,
@@ -85,7 +82,6 @@ impl RenderState {
         let depth_texture = DepthTexture::new(&device, &config);
 
         let scene = Scene::new(&device, &config);
-        let gui = GuiOverlay::new(&device, &config);
 
         Ok(Self {
             surface,
@@ -95,7 +91,6 @@ impl RenderState {
             is_surface_configured: false,
             depth_texture,
             scene,
-            gui,
             window,
         })
     }
@@ -113,9 +108,6 @@ impl RenderState {
             // update camera
             self.scene.camera.resize(width, height);
         }
-
-        // gui text brush needs to know screen size
-        self.gui.handle_resize(width, height, &self.queue);
     }
 
     pub fn handle_window_event(&mut self, _event: &WindowEvent) {}
@@ -128,13 +120,6 @@ impl RenderState {
         }
         let snapshot = snapshot.unwrap();
 
-        // preparation -----
-
-        if let Some(text) = snapshot.debug_string.as_ref() {
-            self.gui.debug_text.change_text(text);
-        }
-
-        self.gui.prepare(&self.device, &self.queue);
         self.scene.prepare(&self.queue, &snapshot);
 
         let output = self.surface.get_current_texture()?;
@@ -197,27 +182,6 @@ impl RenderState {
                 });
 
             self.scene.render(&mut render_pass);
-        }
-
-        {
-            // overlay render pass
-            let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: Some("overlay render Pass"),
-                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: &view,
-                    resolve_target: None,
-                    ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Load, // dont overwrite
-                        store: wgpu::StoreOp::Store,
-                    },
-                    depth_slice: None, // wgpu 26 feature
-                })],
-                depth_stencil_attachment: None, // no depth buffer
-                timestamp_writes: None,
-                occlusion_query_set: None,
-            });
-
-            self.gui.render(&mut render_pass);
         }
 
         self.queue.submit(std::iter::once(encoder.finish()));

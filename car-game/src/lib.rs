@@ -1,5 +1,6 @@
 mod debug_controller;
 mod framerate;
+mod web_interface;
 
 use std::sync::Arc;
 
@@ -149,10 +150,15 @@ impl ApplicationHandler<RenderState> for App {
                         );
                     }
 
-                    render_state
-                        .gui
-                        .fps_text
-                        .change_text(format!("FPS: {:.0}", self.fps_counter.fps()));
+                    /*render_state
+                    .gui
+                    .fps_text
+                    .change_text(format!("FPS: {:.0}", self.fps_counter.fps()));*/
+
+                    web_interface::update_hud_fps(self.fps_counter.fps());
+                    if let Some(s) = &snapshot.debug_string {
+                        web_interface::set_debug_text(s.as_str());
+                    }
 
                     Some(snapshot)
                 } else {

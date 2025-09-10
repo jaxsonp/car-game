@@ -1,0 +1,39 @@
+
+* {
+	margin: 0;
+	padding: 0;
+}
+
+html, body {
+	background-color: #343434;
+
+	width: 100vw;
+	height: 100vh;
+
+	display: flex;
+	justify-content: center;
+	align-items: center;
+}
+
+main {
+	position: relative;
+}
+
+main > * {
+	grid-row: 1;
+	grid-column: 1;
+}
+
+#hud-container {
+	position: absolute;
+	inset: 0;
+	pointer-events: none;
+}
+
+#main-canvas {
+	image-rendering: pixelated;
+}
+
+#main-canvas:focus {
+	outline: none;
+}
