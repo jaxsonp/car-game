@@ -6,11 +6,6 @@ macro_rules! load_obj_mesh {
     }};
 }
 
-#[macro_export]
-macro_rules! load_font {
-    ($name:literal) => {{ include_bytes!(concat!(env!("FONTS_DIR"), "/", $name)) }};
-}
-
 /// Create an array of `DebugLine`s from a set of semicolon-delimited polylines
 ///
 /// Define a polyline like so:

@@ -215,7 +215,9 @@ impl CarHandler {
                     // boost acceleration when drifting
                     wheel_forces.y *= 1.1;
 
-                    skid_contact_points[wheel_i] = Some(contact_point);
+                    if car_linvel.magnitude() > 1.5 {
+                        skid_contact_points[wheel_i] = Some(contact_point);
+                    }
                 }
                 car_rb.apply_impulse_at_point(
                     wheel_right_dir * wheel_forces.x * adjusted_dt,

@@ -73,7 +73,7 @@ impl Model {
             ],
         });
 
-        log::info!(
+        log::debug!(
             "Loaded meshes for model \"{}\" ({} verts, {} faces)",
             name,
             GO::render_meshes

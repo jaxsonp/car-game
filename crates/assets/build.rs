@@ -13,15 +13,11 @@ use workspace_root::get_workspace_root;
 /// `OUT_DIR`, containing a value of the following type: `&[RawMesh]`, with one `RawMesh` per material in the file
 fn main() {
     let assets_dir = get_workspace_root().join("assets");
-    let fonts_dir = assets_dir.join("fonts");
-    let meshes_dir = assets_dir.join("meshes");
-
-    println!("cargo::rustc-env=FONTS_DIR={}", fonts_dir.display());
 
     println!("cargo::rerun-if-changed={}", assets_dir.display());
 
     let out_dir = PathBuf::from(std::env::var("OUT_DIR").unwrap());
-    for file in std::fs::read_dir(meshes_dir).unwrap() {
+    for file in std::fs::read_dir(assets_dir).unwrap() {
         if file.is_err() {
             continue;
         }

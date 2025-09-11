@@ -1,5 +1,7 @@
+@import "fonts.css";
 
 * {
+	font-family: "SpaceGrotesk", 'Courier New', Courier, monospace;
 	margin: 0;
 	padding: 0;
 }
@@ -32,6 +34,7 @@ main > * {
 
 #main-canvas {
 	image-rendering: pixelated;
+	z-index: -1;
 }
 
 #main-canvas:focus {

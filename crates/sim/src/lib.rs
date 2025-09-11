@@ -64,15 +64,6 @@ impl GameSimulation {
             car_transform: *self.physics_handler.rigid_bodies[self.car_handler.handle].position(),
             wheel_transforms,
             skid_contact_points,
-            debug_string: Some(format!(
-                "turn: {:?}\ndrive: {:?}\nthrottle: {:.1}\nspeed: {:.1}",
-                self.car_handler.turn_input,
-                self.car_handler.drive_input,
-                self.car_handler.throttle,
-                self.physics_handler.rigid_bodies[self.car_handler.handle]
-                    .linvel()
-                    .magnitude()
-            )),
         }
     }
 
@@ -125,5 +116,18 @@ impl GameSimulation {
             .lerp(&target_target, CAM_TARGET_LERP * adjusted_dt);
 
         cam.up = cam.up.lerp(&Vector3::y(), CAM_TARGET_LERP * adjusted_dt);
+    }
+
+    pub fn get_debug_string(&self) -> String {
+        format!(
+            "throttle input: {:?}\nsteer input: {:?}\nthrottle: {:.2}\nsteer: {:.2}\nspeed: {:.2}\n",
+            self.car_handler.drive_input,
+            self.car_handler.turn_input,
+            self.car_handler.throttle,
+            self.car_handler.turn_angle,
+            self.physics_handler.rigid_bodies[self.car_handler.handle]
+                .linvel()
+                .magnitude(),
+        )
     }
 }

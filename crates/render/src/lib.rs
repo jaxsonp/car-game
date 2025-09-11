@@ -13,6 +13,7 @@ use scene::Scene;
 /// Main rendering object
 pub struct RenderState {
     surface: wgpu::Surface<'static>,
+    adapter: wgpu::Adapter,
     device: wgpu::Device,
     queue: wgpu::Queue,
     config: wgpu::SurfaceConfiguration,
@@ -85,6 +86,7 @@ impl RenderState {
 
         Ok(Self {
             surface,
+            adapter,
             device,
             queue,
             config,
@@ -188,6 +190,22 @@ impl RenderState {
         output.present();
 
         Ok(())
+    }
+
+    pub fn get_debug_string(&self) -> String {
+        let size = self.window.inner_size();
+        let adapter_info = self.adapter.get_info();
+        format!(
+            "window: {}x{} (dpr: {})\n{} ({:?})\n{} - {}\nbackend: {:?}\n",
+            size.width,
+            size.height,
+            self.window.scale_factor(),
+            adapter_info.name,
+            adapter_info.device_type,
+            adapter_info.driver_info,
+            adapter_info.driver,
+            adapter_info.backend,
+        )
     }
 }
 

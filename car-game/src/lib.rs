@@ -12,7 +12,7 @@ use winit::{
     application::ApplicationHandler,
     event::*,
     event_loop::{ActiveEventLoop, EventLoop},
-    keyboard::{KeyCode, PhysicalKey},
+    keyboard::{Key, KeyCode, NamedKey, PhysicalKey},
     window::Window,
 };
 
@@ -22,9 +22,13 @@ use framerate::FramerateCounter;
 #[wasm_bindgen]
 pub fn run_game(canvas_id: JsString) -> Result<(), wasm_bindgen::JsValue> {
     console_error_panic_hook::set_once();
-    console_log::init_with_level(log::Level::Debug)
-        .expect_throw("Failed to initialize console logging");
-    log::info!("Initializing car game");
+    console_log::init_with_level(if cfg!(debug_assertions) {
+        log::Level::Debug
+    } else {
+        log::Level::Info
+    })
+    .expect_throw("Failed to initialize console logging");
+    log::info!("Starting car game");
 
     let event_loop = EventLoop::with_user_event()
         .build()
@@ -41,10 +45,11 @@ pub struct App {
     canvas_id: String,
     proxy: Option<winit::event_loop::EventLoopProxy<RenderState>>,
     render_state: Option<RenderState>,
-    focused: bool,
+    paused: bool,
+
     sim: GameSimulation,
     fps_counter: FramerateCounter,
-
+    debug_text_shown: bool,
     debug_camera_activated: bool,
     debug_camera_controller: DebugCameraController,
 }
@@ -58,8 +63,9 @@ impl App {
             proxy,
             render_state: None,
             sim: GameSimulation::new(),
-            focused: true,
+            paused: false,
             fps_counter,
+            debug_text_shown: false,
             debug_camera_activated: false,
             debug_camera_controller: DebugCameraController::new(),
         }
@@ -129,11 +135,11 @@ impl ApplicationHandler<RenderState> for App {
 
                 // delta time in seconds
                 let dt = self.fps_counter.tick();
-                let render_snapshot = if self.focused {
+                let render_snapshot = if !self.paused {
                     // delta time in expected frame time (60fps)
                     let adjusted_dt = dt * 60.0;
 
-                    let mut snapshot = self.sim.step(adjusted_dt, !self.debug_camera_activated);
+                    let snapshot = self.sim.step(adjusted_dt, !self.debug_camera_activated);
 
                     if self.debug_camera_activated {
                         self.debug_camera_controller
@@ -143,27 +149,28 @@ impl ApplicationHandler<RenderState> for App {
                             .update_camera(adjusted_dt, &mut render_state.scene.camera);
                     }
 
-                    if self.debug_camera_activated {
-                        snapshot.debug_string = Some(
-                            "[debug cam]\n".to_string()
-                                + &snapshot.debug_string.unwrap_or_default(),
+                    if self.debug_text_shown {
+                        web_interface::set_debug_text(
+                            format!(
+                                "fps: {}\nview: {}\n\n{}\n{}",
+                                self.fps_counter.fps(),
+                                if self.debug_camera_activated {
+                                    "freecam"
+                                } else {
+                                    "car"
+                                },
+                                render_state.get_debug_string(),
+                                self.sim.get_debug_string(),
+                            )
+                            .as_str(),
                         );
-                    }
-
-                    /*render_state
-                    .gui
-                    .fps_text
-                    .change_text(format!("FPS: {:.0}", self.fps_counter.fps()));*/
-
-                    web_interface::update_hud_fps(self.fps_counter.fps());
-                    if let Some(s) = &snapshot.debug_string {
-                        web_interface::set_debug_text(s.as_str());
                     }
 
                     Some(snapshot)
                 } else {
                     None
                 };
+
                 render_state
                     .render(render_snapshot)
                     .expect_throw("Render failed");
@@ -172,6 +179,7 @@ impl ApplicationHandler<RenderState> for App {
                 event:
                     KeyEvent {
                         physical_key: PhysicalKey::Code(code),
+                        ref logical_key,
                         state: key_state,
                         ..
                     },
@@ -180,8 +188,9 @@ impl ApplicationHandler<RenderState> for App {
                 let pressed = key_state.is_pressed();
                 match (code, pressed) {
                     (KeyCode::Escape, true) => {
-                        log::info!("Program exiting");
-                        event_loop.exit()
+                        log::debug!("Toggled pause");
+                        self.paused = !self.paused;
+                        web_interface::show_pause_menu(self.paused);
                     }
                     (KeyCode::Tab, true) => {
                         log::debug!("Switched camera mode");
@@ -189,12 +198,25 @@ impl ApplicationHandler<RenderState> for App {
                     }
                     _ => {}
                 }
+                if pressed && matches!(logical_key, Key::Named(NamedKey::F1)) {
+                    log::debug!("Toggled debug text");
+                    self.debug_text_shown = !self.debug_text_shown;
+                    if !self.debug_text_shown {
+                        web_interface::set_debug_text("");
+                    }
+                }
+
                 self.debug_camera_controller.handle_key_event(code, pressed);
                 self.sim.controller.handle_key_event(code, pressed);
             }
             WindowEvent::Focused(focused) => {
-                self.focused = focused;
                 log::debug!("Focused: {focused}");
+                if focused == false {
+                    if !self.paused {
+                        web_interface::show_pause_menu(true);
+                        self.paused = true;
+                    }
+                }
             }
             _ => {}
         }
