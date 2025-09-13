@@ -152,7 +152,7 @@ impl ApplicationHandler<RenderState> for App {
                     if self.debug_text_shown {
                         web_interface::set_debug_text(
                             format!(
-                                "fps: {}\nview: {}\n\n{}\n{}",
+                                "fps: {:.2}\nview: {}\n\n{}\n{}",
                                 self.fps_counter.fps(),
                                 if self.debug_camera_activated {
                                     "freecam"
@@ -201,9 +201,7 @@ impl ApplicationHandler<RenderState> for App {
                 if pressed && matches!(logical_key, Key::Named(NamedKey::F1)) {
                     log::debug!("Toggled debug text");
                     self.debug_text_shown = !self.debug_text_shown;
-                    if !self.debug_text_shown {
-                        web_interface::set_debug_text("");
-                    }
+                    web_interface::show_debug_text(self.debug_text_shown);
                 }
 
                 self.debug_camera_controller.handle_key_event(code, pressed);

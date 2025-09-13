@@ -8,10 +8,23 @@
 	</head>
 	<body>
 		<main>
+			<!-- star of the show B) -->
 			<canvas id="main-canvas">
 			</canvas>
 			<div id="hud-container">
-				<p id="debug-text" style="position: absolute; left: 2px; top: 2px;"></p>
+				<div id="pause-menu">
+					<h1 style="font-size: xxx-large;">Paused</h1>
+					<p>Press ESC to unpause</p>
+					<div style="flex-grow: 1;"></div>
+					<h2>Controls</h2>
+					<div style="display: grid; grid-template-columns: max-content 1fr; gap: 0.5rem 1rem;">
+						<p>W/S</p><p>Accelerate/brake</p>
+						<p>A/D</p><p>Steer left/right</p>
+						<p>Esc</p><p>Pause/unpause game</p>
+						<p>F1</p><p>Toggle debug text</p>
+					</div>
+				</div>
+				<p><span id="debug-text"></span></p>
 			</div>
 		</main>
 		<script type="module" src="js/run_game.js"></script>
