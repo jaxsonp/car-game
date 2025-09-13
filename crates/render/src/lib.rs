@@ -166,7 +166,13 @@ impl RenderState {
                         view: &view,
                         resolve_target: None,
                         ops: wgpu::Operations {
-                            load: wgpu::LoadOp::Clear(wgpu::Color::WHITE),
+                            // sky color
+                            load: wgpu::LoadOp::Clear(wgpu::Color {
+                                r: 185.0 / 255.0,
+                                g: 240.0 / 255.0,
+                                b: 244.0 / 255.0,
+                                a: 1.0,
+                            }),
                             store: wgpu::StoreOp::Store,
                         },
                         depth_slice: None, // wgpu 26 feature
@@ -196,15 +202,14 @@ impl RenderState {
         let size = self.window.inner_size();
         let adapter_info = self.adapter.get_info();
         format!(
-            "window: {}x{} (dpr: {})\n{} ({:?})\n{} - {}\nbackend: {:?}\n",
+            "window: {}x{} (dpr: {})\n{} ({:?})\nbackend: {:?} ({})\n",
             size.width,
             size.height,
             self.window.scale_factor(),
             adapter_info.name,
             adapter_info.device_type,
-            adapter_info.driver_info,
-            adapter_info.driver,
             adapter_info.backend,
+            adapter_info.driver_info,
         )
     }
 }

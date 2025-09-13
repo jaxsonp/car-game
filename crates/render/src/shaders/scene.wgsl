@@ -26,23 +26,42 @@ var<uniform> model_transform: mat4x4<f32>;
 @group(1) @binding(1)
 var<uniform> normal_transform: mat4x4<f32>;
 
+struct VertexInput {
+    @location(0) pos: vec3<f32>,
+    @location(1) normal: vec3<f32>,
+}
+
+struct InstanceInput {
+    @location(5) transform_matrix_0: vec4<f32>,
+    @location(6) transform_matrix_1: vec4<f32>,
+    @location(7) transform_matrix_2: vec4<f32>,
+    @location(8) transform_matrix_3: vec4<f32>,
+}
+
 struct VertexOutput {
-    @builtin(position) clip_position: vec4<f32>,
+    @builtin(position) clip_pos: vec4<f32>,
     @location(0) normal: vec3<f32>,
     @location(1) shadow_map_pos: vec4<f32>,
 }
 
 @vertex
 fn vert_main(
-    @location(0) v_position: vec3<f32>,
-    @location(1) v_normal: vec3<f32>,
+    vert: VertexInput,
+    instance: InstanceInput,
 ) -> VertexOutput {
-    let pos = vec4<f32>(v_position, 1.0);
-    let world_pos = model_transform * pos;
+    let instance_transform = mat4x4<f32>(
+        instance.transform_matrix_0,
+        instance.transform_matrix_1,
+        instance.transform_matrix_2,
+        instance.transform_matrix_3,
+    );
+
+    let pos = vec4<f32>(vert.pos, 1.0);
+    let world_pos = instance_transform * model_transform * pos;
 
     var out: VertexOutput;
-    out.clip_position = camera_matrix * world_pos;
-    out.normal = (normal_transform * vec4<f32>(v_normal, 0.0)).xyz;
+    out.clip_pos = camera_matrix * world_pos;
+    out.normal = (normal_transform * vec4<f32>(vert.normal, 0.0)).xyz;
     out.shadow_map_pos = shadow_map_view_proj_matrix * world_pos;
     return out;
 }

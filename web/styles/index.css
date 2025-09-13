@@ -72,6 +72,7 @@ main > * {
 	z-index: 10;
 
 	display: hidden; /* block but initially hidden */
-	font-size: smaller;
+	font-size: small;
+	font-family: monospace;
 	background-color: rgba(255, 255, 255, 0.2);
 }

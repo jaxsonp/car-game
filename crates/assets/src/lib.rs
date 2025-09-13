@@ -38,6 +38,7 @@ pub trait GameObject {
         }
         ColliderBuilder::trimesh(verts, indices).expect("Failed to create trimesh collision box")
     }
+    const instances: Option<&'static [Point3<f32>]> = None;
 }
 
 #[derive(Clone, Copy)]

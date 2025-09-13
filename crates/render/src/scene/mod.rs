@@ -163,7 +163,7 @@ impl Scene {
                 vertex: wgpu::VertexState {
                     module: &shader,
                     entry_point: None,
-                    buffers: &[mesh::Vertex::BUFFER_LAYOUT],
+                    buffers: &[mesh::Vertex::BUFFER_LAYOUT, Model::INSTANCE_BUFFER_LAYOUT],
                     compilation_options: wgpu::PipelineCompilationOptions::default(),
                 },
                 fragment: Some(wgpu::FragmentState {
@@ -351,8 +351,10 @@ impl Scene {
         let static_models: Vec<Model> = vec![
             Model::from_object::<assets::objects::Ground>("Ground", device, None),
             Model::from_object::<assets::objects::Roads>("Roads", device, None),
-            Model::from_object::<assets::objects::WorldDecor>("Decor", device, None),
+            Model::from_object::<assets::objects::Buildings>("Buildings", device, None),
+            Model::from_object::<assets::objects::Streetlights>("Streetlights", device, None),
             Model::from_object::<assets::objects::Ocean>("Ocean", device, None),
+            Model::from_object::<assets::objects::Trees1>("Trees1", device, None),
         ];
 
         Scene {

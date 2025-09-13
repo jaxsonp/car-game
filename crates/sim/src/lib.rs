@@ -22,21 +22,19 @@ impl GameSimulation {
     pub fn new() -> GameSimulation {
         let mut physics_handler = PhysicsHandler::new();
 
-        // ground
-        physics_handler.insert_object(
-            RigidBodyBuilder::new(RigidBodyType::Fixed).build(),
-            Some(assets::objects::Ground::get_collision_box().build()),
-        );
-        // roads
-        physics_handler.insert_object(
-            RigidBodyBuilder::new(RigidBodyType::Fixed).build(),
-            Some(assets::objects::Roads::get_collision_box().build()),
-        );
-        // decor
-        physics_handler.insert_object(
-            RigidBodyBuilder::new(RigidBodyType::Fixed).build(),
-            Some(assets::objects::WorldDecor::get_collision_box().build()),
-        );
+        // static hitboxes
+        for collider in [
+            assets::objects::Ground::get_collision_box().build(),
+            assets::objects::Roads::get_collision_box().build(),
+            assets::objects::Buildings::get_collision_box().build(),
+            assets::objects::Streetlights::get_collision_box().build(),
+            assets::objects::Trees1::get_collision_box().build(),
+        ] {
+            physics_handler.insert_object(
+                RigidBodyBuilder::new(RigidBodyType::Fixed).build(),
+                Some(collider),
+            );
+        }
 
         let car_handler = CarHandler::new(&mut physics_handler);
 

@@ -5,7 +5,7 @@ use nalgebra::Isometry3;
 use wgpu::{
     BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout, BindGroupLayoutDescriptor,
     BindGroupLayoutEntry, BindingType, Buffer, BufferBindingType, BufferDescriptor, BufferUsages,
-    Queue, RenderPass, ShaderStages,
+    Queue, RenderPass, ShaderStages, util::DeviceExt,
 };
 
 use super::mesh::Mesh;
@@ -21,6 +21,8 @@ pub struct Model {
     #[cfg(debug_assertions)]
     debug_lines: Option<DebugLineGroup>,
     bind_group: BindGroup,
+    instance_buffer: Buffer,
+    n_instances: u32,
 
     static_transform: Option<Isometry3<f32>>,
     new_transform: Option<Isometry3<f32>>,
@@ -55,6 +57,22 @@ impl Model {
             size: size_of::<Matrix4Uniform>() as u64,
             usage: BufferUsages::COPY_DST.union(BufferUsages::UNIFORM),
             mapped_at_creation: false,
+        });
+        let (n_instances, instance_data) = if let Some(instances) = GO::instances {
+            (
+                instances.len() as u32,
+                instances
+                    .into_iter()
+                    .map(|pos| Matrix4Uniform::from(Isometry3::translation(pos.x, pos.y, pos.z)))
+                    .collect::<Vec<Matrix4Uniform>>(),
+            )
+        } else {
+            (1u32, vec![Matrix4Uniform::from(Isometry3::identity())])
+        };
+        let instance_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("instance buffer"),
+            contents: bytemuck::cast_slice(&instance_data),
+            usage: wgpu::BufferUsages::VERTEX,
         });
 
         let bind_group_layout = Self::get_bind_group_layout(device);
@@ -92,6 +110,8 @@ impl Model {
             #[cfg(debug_assertions)]
             debug_lines,
             bind_group,
+            instance_buffer,
+            n_instances,
             static_transform,
             new_transform: Some(Isometry3::identity()),
             model_transform_buffer,
@@ -155,20 +175,24 @@ impl Model {
 
     pub fn render(&self, render_pass: &mut RenderPass) {
         render_pass.set_bind_group(1, &self.bind_group, &[]);
+        render_pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
+
         for mesh in self.meshes.iter() {
             render_pass.set_bind_group(2, &mesh.bind_group, &[]);
             render_pass.set_vertex_buffer(0, mesh.vertex_buffer.slice(..));
             render_pass.set_index_buffer(mesh.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
-            render_pass.draw_indexed(0..mesh.n_indices, 0, 0..1);
+            render_pass.draw_indexed(0..mesh.n_indices, 0, 0..self.n_instances);
         }
     }
 
     pub fn shadow_map_render(&self, render_pass: &mut RenderPass) {
         render_pass.set_bind_group(1, &self.bind_group, &[]);
+        render_pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
+
         for mesh in self.meshes.iter() {
             render_pass.set_vertex_buffer(0, mesh.vertex_buffer.slice(..));
             render_pass.set_index_buffer(mesh.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
-            render_pass.draw_indexed(0..mesh.n_indices, 0, 0..1);
+            render_pass.draw_indexed(0..mesh.n_indices, 0, 0..self.n_instances);
         }
     }
 
@@ -183,4 +207,32 @@ impl Model {
     pub fn set_transform(&mut self, transform: Isometry3<f32>) {
         self.new_transform = Some(transform);
     }
+
+    pub const INSTANCE_BUFFER_LAYOUT: wgpu::VertexBufferLayout<'static> =
+        wgpu::VertexBufferLayout {
+            array_stride: size_of::<Matrix4Uniform>() as u64,
+            step_mode: wgpu::VertexStepMode::Instance,
+            attributes: &[
+                wgpu::VertexAttribute {
+                    offset: 0,
+                    shader_location: 5,
+                    format: wgpu::VertexFormat::Float32x4,
+                },
+                wgpu::VertexAttribute {
+                    offset: size_of::<[f32; 4]>() as u64,
+                    shader_location: 6,
+                    format: wgpu::VertexFormat::Float32x4,
+                },
+                wgpu::VertexAttribute {
+                    offset: size_of::<[f32; 8]>() as u64,
+                    shader_location: 7,
+                    format: wgpu::VertexFormat::Float32x4,
+                },
+                wgpu::VertexAttribute {
+                    offset: size_of::<[f32; 12]>() as u64,
+                    shader_location: 8,
+                    format: wgpu::VertexFormat::Float32x4,
+                },
+            ],
+        };
 }

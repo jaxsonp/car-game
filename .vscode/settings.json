@@ -1,6 +1,17 @@
 {
 	"rust-analyzer.files.exclude": [
-		"target",
+		"/target",
+		"/web",
+		"/assets",
 	],
+	"files.watcherExclude": {
+		"**/.git/objects/**": true,
+		"**/.git/subtree-cache/**": true,
+		"**/.hg/store/**": true,
+		"/target": true,
+		"/web": true,
+		"/assets": true,
+	},
+	"rust-analyzer.procMacro.enable": false,
 	"rust-analyzer.checkOnSave": false
 }

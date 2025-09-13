@@ -102,7 +102,10 @@ impl ShadowMapper {
                 vertex: wgpu::VertexState {
                     module: &shader,
                     entry_point: None,
-                    buffers: &[crate::scene::mesh::Vertex::BUFFER_LAYOUT],
+                    buffers: &[
+                        crate::scene::mesh::Vertex::BUFFER_LAYOUT,
+                        Model::INSTANCE_BUFFER_LAYOUT,
+                    ],
                     compilation_options: PipelineCompilationOptions::default(),
                 },
                 fragment: None, // no frag shader
