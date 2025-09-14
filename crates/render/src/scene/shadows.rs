@@ -3,7 +3,7 @@ use wgpu::{
     BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayoutDescriptor,
     BindGroupLayoutEntry, BindingType, Buffer, BufferBindingType, BufferDescriptor,
     CompareFunction, Device, Extent3d, PipelineCompilationOptions, PipelineLayoutDescriptor, Queue,
-    RenderPipeline, Sampler, ShaderStages, TextureView,
+    RenderPipeline, Sampler, ShaderModule, ShaderStages, TextureView,
 };
 
 use crate::{scene::model::Model, uniforms::Matrix4Uniform};
@@ -28,7 +28,7 @@ impl ShadowMapper {
         depth_or_array_layers: 1,
     };
 
-    pub fn new(device: &Device) -> ShadowMapper {
+    pub fn new(device: &Device, shader: &ShaderModule) -> ShadowMapper {
         let texture = device.create_texture(&wgpu::TextureDescriptor {
             label: Some("shadow map texture"),
             size: Self::TEX_SIZE,
@@ -55,7 +55,7 @@ impl ShadowMapper {
         let bind_group_layout = device.create_bind_group_layout(&BindGroupLayoutDescriptor {
             label: Some("shadow map scene bind group layout"),
             entries: &[BindGroupLayoutEntry {
-                binding: 0,
+                binding: 2,
                 visibility: ShaderStages::VERTEX,
                 ty: BindingType::Buffer {
                     ty: BufferBindingType::Uniform,
@@ -77,19 +77,12 @@ impl ShadowMapper {
             label: Some("scene bind group"),
             layout: &bind_group_layout,
             entries: &[BindGroupEntry {
-                binding: 0,
+                binding: 2,
                 resource: view_proj_buffer.as_entire_binding(),
             }],
         });
 
         let render_pipeline = {
-            let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-                label: Some("shadow map shader"),
-                source: wgpu::ShaderSource::Wgsl(
-                    include_str!("../shaders/shadow_pass.wgsl").into(),
-                ),
-            });
-
             let pipeline_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
                 label: Some("shadow map pipeline layout"),
                 bind_group_layouts: &[&bind_group_layout, &Model::get_bind_group_layout(device)],
@@ -100,8 +93,8 @@ impl ShadowMapper {
                 label: Some("shadow map rendering pipeline"),
                 layout: Some(&pipeline_layout),
                 vertex: wgpu::VertexState {
-                    module: &shader,
-                    entry_point: None,
+                    module: shader,
+                    entry_point: Some("vert_shadow"),
                     buffers: &[
                         crate::scene::mesh::Vertex::BUFFER_LAYOUT,
                         Model::INSTANCE_BUFFER_LAYOUT,

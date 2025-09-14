@@ -42,6 +42,11 @@ pub struct Scene {
 
 impl Scene {
     pub fn new(device: &wgpu::Device, config: &wgpu::SurfaceConfiguration) -> Scene {
+        let scene_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+            label: Some("scene mesh shader"),
+            source: wgpu::ShaderSource::Wgsl(include_str!("../shaders/scene.wgsl").into()),
+        });
+
         let scene_bind_group_layout = device.create_bind_group_layout(&BindGroupLayoutDescriptor {
             label: Some("scene bind group layout"),
             entries: &[
@@ -113,7 +118,8 @@ impl Scene {
             size: size_of::<CameraUniformMatrix>() as u64,
             mapped_at_creation: false,
         });
-        let shadow_mapper = ShadowMapper::new(device);
+
+        let shadow_mapper = ShadowMapper::new(device, &scene_shader);
 
         let scene_bind_group = device.create_bind_group(&BindGroupDescriptor {
             label: Some("scene bind group"),
@@ -143,10 +149,6 @@ impl Scene {
         });
 
         let mesh_render_pipeline = {
-            let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-                label: Some("scene mesh shader"),
-                source: wgpu::ShaderSource::Wgsl(include_str!("../shaders/scene.wgsl").into()),
-            });
             let mesh_render_pipeline_layout =
                 device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                     label: Some("scene mesh render pipeline layout"),
@@ -161,14 +163,14 @@ impl Scene {
                 label: Some("scene mesh render pipeline"),
                 layout: Some(&mesh_render_pipeline_layout),
                 vertex: wgpu::VertexState {
-                    module: &shader,
-                    entry_point: None,
+                    module: &scene_shader,
+                    entry_point: Some("vert_scene"),
                     buffers: &[mesh::Vertex::BUFFER_LAYOUT, Model::INSTANCE_BUFFER_LAYOUT],
                     compilation_options: wgpu::PipelineCompilationOptions::default(),
                 },
                 fragment: Some(wgpu::FragmentState {
-                    module: &shader,
-                    entry_point: None,
+                    module: &scene_shader,
+                    entry_point: Some("frag_scene"),
                     targets: &[Some(wgpu::ColorTargetState {
                         format: config.format,
                         blend: Some(wgpu::BlendState::REPLACE),
