@@ -4,7 +4,7 @@ use std::{
     path::PathBuf,
 };
 
-use obj::{OBJMaterial, OBJMesh};
+use car_game_obj::{OBJMaterial, OBJMesh};
 use workspace_root::get_workspace_root;
 
 /// This build script re-parses obj models into `RawMesh`es
@@ -42,7 +42,7 @@ fn main() {
             output_path.display(),
         );
 
-        match obj::parse_obj_file(file_path.clone()) {
+        match car_game_obj::parse_obj_file(file_path.clone()) {
             Ok(meshes) => {
                 emit_parsed_obj(meshes, output_path).expect("Error while writing parsed OBJ");
             }

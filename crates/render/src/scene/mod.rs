@@ -6,8 +6,8 @@ mod model;
 mod shadows;
 mod skidlines;
 
+use car_game_utils::*;
 use nalgebra::{Isometry3, Rotation3, Translation, Vector3};
-use utils::*;
 use wgpu::{
     BindGroupDescriptor, BindGroupEntry, BindGroupLayoutDescriptor, BindGroupLayoutEntry,
     BindingResource, BindingType, BlendComponent, BlendFactor, BlendOperation, BufferBindingType,
@@ -328,9 +328,10 @@ impl Scene {
             })
         };
 
-        let car = Model::from_object::<assets::objects::Car>("Car", device, None);
+        use car_game_assets::objects;
+        let car = Model::from_object::<objects::Car>("Car", device, None);
         let wheels = [0, 1, 2, 3].map(|i| {
-            Model::from_object::<assets::objects::Wheel>(
+            Model::from_object::<objects::Wheel>(
                 format!("Wheel {}", i).as_str(),
                 device,
                 Some(Isometry3::from_parts(
@@ -347,15 +348,15 @@ impl Scene {
                 )),
             )
         });
-        let skidlines = [0, 1, 2, 3].map(|i| SkidLine::new(device, i));
         let static_models: Vec<Model> = vec![
-            Model::from_object::<assets::objects::Ground>("Ground", device, None),
-            Model::from_object::<assets::objects::Roads>("Roads", device, None),
-            Model::from_object::<assets::objects::Buildings>("Buildings", device, None),
-            Model::from_object::<assets::objects::Streetlights>("Streetlights", device, None),
-            Model::from_object::<assets::objects::Ocean>("Ocean", device, None),
-            Model::from_object::<assets::objects::Trees1>("Trees1", device, None),
+            Model::from_object::<objects::Ground>("Ground", device, None),
+            Model::from_object::<objects::Roads>("Roads", device, None),
+            Model::from_object::<objects::Buildings>("Buildings", device, None),
+            Model::from_object::<objects::Streetlights>("Streetlights", device, None),
+            Model::from_object::<objects::Ocean>("Ocean", device, None),
+            Model::from_object::<objects::Trees1>("Trees1", device, None),
         ];
+        let skidlines = [0, 1, 2, 3].map(|i| SkidLine::new(device, i));
 
         Scene {
             mesh_render_pipeline,

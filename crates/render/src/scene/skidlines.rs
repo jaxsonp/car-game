@@ -1,5 +1,5 @@
+use car_game_utils::RenderSnapshot;
 use nalgebra::{Point3, Vector3};
-use utils::RenderSnapshot;
 use wgpu::{Buffer, BufferDescriptor, BufferUsages, RenderPass};
 
 // how many vertex's are saved at a time

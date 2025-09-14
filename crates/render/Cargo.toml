@@ -1,5 +1,5 @@
 [package]
-name = "render"
+name = "car-game-render"
 authors.workspace = true
 version.workspace = true
 edition.workspace = true
@@ -7,11 +7,11 @@ rust-version.workspace = true
 
 [dependencies]
 anyhow = "1.0"
-assets = { workspace = true }
+car-game-assets = { workspace = true }
+car-game-utils = { workspace = true }
 bytemuck = { version = "1.16", features = [ "derive" ] }
 log = { workspace = true }
 nalgebra = { workspace = true }
-utils = { workspace = true }
 wasm-bindgen = { workspace = true }
 wgpu = { workspace = true }
 winit = { workspace = true } 

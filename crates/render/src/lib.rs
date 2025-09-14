@@ -3,7 +3,7 @@ mod uniforms;
 
 use std::sync::Arc;
 
-use utils::*;
+use car_game_utils::*;
 use wasm_bindgen::prelude::*;
 use wgpu::RequestAdapterOptions;
 use winit::{event::WindowEvent, window::Window};

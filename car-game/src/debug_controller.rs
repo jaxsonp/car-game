@@ -1,5 +1,5 @@
+use car_game_utils::Camera;
 use nalgebra::{Rotation, Unit, Vector3};
-use utils::Camera;
 use winit::keyboard::KeyCode;
 
 /// A simple stand-in camera controller for flying around the scene creative mode style

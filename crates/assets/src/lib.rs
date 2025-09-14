@@ -1,7 +1,7 @@
 mod macros;
 pub mod objects;
 
-use nalgebra::Point3;
+use nalgebra::{Isometry3, Point3};
 use rapier3d::prelude::ColliderBuilder;
 
 type Color = [f32; 3];
@@ -38,7 +38,9 @@ pub trait GameObject {
         }
         ColliderBuilder::trimesh(verts, indices).expect("Failed to create trimesh collision box")
     }
-    const instances: Option<&'static [Point3<f32>]> = None;
+    fn get_instances() -> Vec<Isometry3<f32>> {
+        vec![Isometry3::identity()]
+    }
 }
 
 #[derive(Clone, Copy)]

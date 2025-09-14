@@ -1,4 +1,4 @@
-use assets::{GameObject, objects::Car};
+use car_game_assets::{GameObject, objects::Car};
 use nalgebra::{Isometry3, Point3, Rotation3, UnitQuaternion, Vector2, Vector3};
 use rapier3d::prelude::*;
 
@@ -79,7 +79,7 @@ impl CarHandler {
         physics: &mut PhysicsHandler,
         controller: Option<&CarController>,
     ) -> ([Isometry3<f32>; 4], [Option<Point3<f32>>; 4]) {
-        use assets::objects::Car;
+        use car_game_assets::objects::Car;
 
         let car_transform = *physics.rigid_bodies[self.handle].position();
         let car_up_dir: Vector3<f32> = (car_transform.rotation * Vector3::y()).normalize();

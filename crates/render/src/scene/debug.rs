@@ -20,7 +20,10 @@ impl DebugLineGroup {
         }
     }
 
-    pub fn from_raw(device: &wgpu::Device, raw_lines: &[assets::RawDebugLine]) -> DebugLineGroup {
+    pub fn from_raw(
+        device: &wgpu::Device,
+        raw_lines: &[car_game_assets::RawDebugLine],
+    ) -> DebugLineGroup {
         let mut verts: Vec<DebugLineVertex> = Vec::new();
         for line in raw_lines {
             verts.push(DebugLineVertex {

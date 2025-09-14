@@ -1,5 +1,5 @@
 [package]
-name = "sim"
+name = "car-game-sim"
 description = "Game physics simulation stuff"
 version.workspace = true
 authors.workspace = true
@@ -7,8 +7,8 @@ edition.workspace = true
 rust-version.workspace = true
 
 [dependencies]
-assets = { workspace = true }
+car-game-assets = { workspace = true }
+car-game-utils = { workspace = true }
 rapier3d = { workspace = true }
 log = { workspace = true }
-utils = { workspace = true }
 winit = { workspace = true } 

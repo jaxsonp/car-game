@@ -1,4 +1,4 @@
-use assets::{RawMesh, RawVertex};
+use car_game_assets::{RawMesh, RawVertex};
 use wgpu::{
     BindGroupDescriptor, BindGroupLayout, BindGroupLayoutDescriptor, BindGroupLayoutEntry,
     BindingType, BufferBindingType, BufferUsages, ShaderStages,

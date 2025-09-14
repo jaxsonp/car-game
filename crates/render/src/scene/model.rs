@@ -1,6 +1,6 @@
 use std::cell::OnceCell;
 
-use assets::GameObject;
+use car_game_assets::GameObject;
 use nalgebra::Isometry3;
 use wgpu::{
     BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout, BindGroupLayoutDescriptor,
@@ -58,17 +58,12 @@ impl Model {
             usage: BufferUsages::COPY_DST.union(BufferUsages::UNIFORM),
             mapped_at_creation: false,
         });
-        let (n_instances, instance_data) = if let Some(instances) = GO::instances {
-            (
-                instances.len() as u32,
-                instances
-                    .into_iter()
-                    .map(|pos| Matrix4Uniform::from(Isometry3::translation(pos.x, pos.y, pos.z)))
-                    .collect::<Vec<Matrix4Uniform>>(),
-            )
-        } else {
-            (1u32, vec![Matrix4Uniform::from(Isometry3::identity())])
-        };
+
+        let instance_data: Vec<Matrix4Uniform> = GO::get_instances()
+            .into_iter()
+            .map(|transform| Matrix4Uniform::from(transform))
+            .collect();
+        let n_instances = instance_data.len() as u32;
         let instance_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("instance buffer"),
             contents: bytemuck::cast_slice(&instance_data),

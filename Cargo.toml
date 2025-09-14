@@ -10,12 +10,12 @@ edition = "2024"
 rust-version = "1.89"
 
 [workspace.dependencies]
-assets = { path = "./crates/assets" }
+car-game-assets = { path = "./crates/assets" }
 nalgebra = "0.34"
 log = "0.4"
 rapier3d = { version = "0.28.0", features = ["enhanced-determinism"]}
-sim = { path = "./crates/sim" }
-utils = { path = "./crates/utils" }
+car-game-sim = { path = "./crates/sim" }
+car-game-utils = { path = "./crates/utils" }
 wasm-bindgen = "0.2.100"
 wgpu = { version = "26.0.1", features = ["webgl", "webgpu"] }
 winit = { version = "0.30" }

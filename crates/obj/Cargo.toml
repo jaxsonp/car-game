@@ -1,5 +1,5 @@
 [package]
-name = "obj"
+name = "car-game-obj"
 description = ".OBJ file reading utilities"
 authors.workspace = true
 version.workspace = true

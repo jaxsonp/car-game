@@ -4,8 +4,8 @@ mod web_interface;
 
 use std::sync::Arc;
 
-use render::RenderState;
-use sim::GameSimulation;
+use car_game_render::RenderState;
+use car_game_sim::GameSimulation;
 use wasm_bindgen::prelude::*;
 use web_sys::js_sys::JsString;
 use winit::{

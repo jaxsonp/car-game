@@ -1,5 +1,5 @@
+use car_game_utils::Camera;
 use nalgebra::{Matrix4, Perspective3};
-use utils::Camera;
 
 pub fn get_view_projection_matrix(camera: &Camera) -> CameraUniformMatrix {
     let view_matrix = Matrix4::look_at_rh(&camera.eye, &camera.target, &camera.up);

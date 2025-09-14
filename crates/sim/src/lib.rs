@@ -2,10 +2,10 @@ mod car;
 mod controller;
 mod physics;
 
-use assets::GameObject;
+use car_game_assets::GameObject;
+use car_game_utils::*;
 use nalgebra::{Point3, Vector3};
 use rapier3d::prelude::*;
-use utils::*;
 
 use car::CarHandler;
 use controller::CarController;
@@ -23,12 +23,13 @@ impl GameSimulation {
         let mut physics_handler = PhysicsHandler::new();
 
         // static hitboxes
+        use car_game_assets::objects;
         for collider in [
-            assets::objects::Ground::get_collision_box().build(),
-            assets::objects::Roads::get_collision_box().build(),
-            assets::objects::Buildings::get_collision_box().build(),
-            assets::objects::Streetlights::get_collision_box().build(),
-            assets::objects::Trees1::get_collision_box().build(),
+            objects::Ground::get_collision_box().build(),
+            objects::Roads::get_collision_box().build(),
+            objects::Buildings::get_collision_box().build(),
+            objects::Streetlights::get_collision_box().build(),
+            objects::Trees1::get_collision_box().build(),
         ] {
             physics_handler.insert_object(
                 RigidBodyBuilder::new(RigidBodyType::Fixed).build(),
