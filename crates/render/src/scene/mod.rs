@@ -3,6 +3,7 @@ mod camera;
 pub mod debug;
 pub mod mesh;
 mod model;
+mod ocean;
 mod shadows;
 mod skidlines;
 
@@ -15,11 +16,12 @@ use wgpu::{
     util::{BufferInitDescriptor, DeviceExt},
 };
 
-use crate::{DepthTexture, uniforms::Vector3Uniform};
+use crate::uniforms::Vector3Uniform;
 use camera::{CameraUniformMatrix, get_view_projection_matrix};
 #[cfg(debug_assertions)]
 use debug::DebugLineVertex;
 use model::Model;
+use ocean::Ocean;
 use shadows::{SUN_DIR, ShadowMapper};
 use skidlines::{SkidLine, SkidLineVert};
 
@@ -30,7 +32,7 @@ pub struct Scene {
     debug_render_pipeline: RenderPipeline,
 
     camera_buffer: wgpu::Buffer,
-    scene_bind_group: wgpu::BindGroup,
+    pub bind_group: wgpu::BindGroup,
 
     pub shadow_mapper: ShadowMapper,
     pub camera: Camera,
@@ -38,10 +40,11 @@ pub struct Scene {
     pub car: Model,
     pub wheels: [Model; 4],
     pub skidlines: [SkidLine; 4],
+    pub ocean: Ocean,
 }
 
 impl Scene {
-    pub fn new(device: &wgpu::Device, config: &wgpu::SurfaceConfiguration) -> Scene {
+    pub(crate) fn new(device: &wgpu::Device, config: &wgpu::SurfaceConfiguration) -> Scene {
         let scene_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("scene mesh shader"),
             source: wgpu::ShaderSource::Wgsl(include_str!("../shaders/scene.wgsl").into()),
@@ -188,7 +191,7 @@ impl Scene {
                     conservative: false,
                 },
                 depth_stencil: Some(wgpu::DepthStencilState {
-                    format: DepthTexture::TEXTURE_FORMAT,
+                    format: wgpu::TextureFormat::Depth32Float,
                     depth_write_enabled: true,
                     depth_compare: wgpu::CompareFunction::Less,
                     stencil: wgpu::StencilState::default(),
@@ -252,7 +255,7 @@ impl Scene {
                     conservative: false,
                 },
                 depth_stencil: Some(wgpu::DepthStencilState {
-                    format: DepthTexture::TEXTURE_FORMAT,
+                    format: wgpu::TextureFormat::Depth32Float,
                     depth_write_enabled: true,
                     depth_compare: wgpu::CompareFunction::Less,
                     stencil: wgpu::StencilState::default(),
@@ -314,7 +317,7 @@ impl Scene {
                     conservative: false,
                 },
                 depth_stencil: Some(wgpu::DepthStencilState {
-                    format: DepthTexture::TEXTURE_FORMAT,
+                    format: wgpu::TextureFormat::Depth32Float,
                     depth_write_enabled: true,
                     depth_compare: wgpu::CompareFunction::Less,
                     stencil: wgpu::StencilState::default(),
@@ -355,10 +358,11 @@ impl Scene {
             Model::from_object::<objects::Roads>("Roads", device, None),
             Model::from_object::<objects::Buildings>("Buildings", device, None),
             Model::from_object::<objects::Streetlights>("Streetlights", device, None),
-            Model::from_object::<objects::Ocean>("Ocean", device, None),
             Model::from_object::<objects::Trees1>("Trees1", device, None),
         ];
         let skidlines = [0, 1, 2, 3].map(|i| SkidLine::new(device, i));
+
+        let ocean = Ocean::new(device, config, &scene_bind_group_layout);
 
         Scene {
             mesh_render_pipeline,
@@ -366,7 +370,7 @@ impl Scene {
             #[cfg(debug_assertions)]
             debug_render_pipeline,
             camera_buffer,
-            scene_bind_group,
+            bind_group: scene_bind_group,
 
             shadow_mapper,
             static_models,
@@ -374,6 +378,7 @@ impl Scene {
             wheels,
             skidlines,
             camera,
+            ocean,
         }
     }
 
@@ -384,26 +389,26 @@ impl Scene {
             bytemuck::cast_slice(&[get_view_projection_matrix(&self.camera)]),
         );
 
-        self.shadow_mapper
-            .prepare(queue, snapshot.car_transform.translation.vector.into());
-
         self.wheels.iter_mut().enumerate().for_each(|(i, w)| {
             w.set_transform(snapshot.wheel_transforms[i]);
         });
-
         self.car.set_transform(snapshot.car_transform);
 
         self.car.prepare(queue);
         self.wheels.iter_mut().for_each(|w| w.prepare(queue));
         self.static_models.iter_mut().for_each(|m| m.prepare(queue));
-
         for skidline in self.skidlines.iter_mut() {
             skidline.prepare(queue, snapshot);
         }
+
+        self.ocean.prepare(queue, snapshot);
+
+        self.shadow_mapper
+            .prepare(queue, snapshot.car_transform.translation.vector.into());
     }
 
     pub fn render<'a>(&'a self, render_pass: &mut wgpu::RenderPass<'a>) {
-        render_pass.set_bind_group(0, &self.scene_bind_group, &[]);
+        render_pass.set_bind_group(0, &self.bind_group, &[]);
 
         // mesh rendering
         render_pass.set_pipeline(&self.mesh_render_pipeline);

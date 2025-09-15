@@ -18,6 +18,7 @@ pub struct RenderState {
     queue: wgpu::Queue,
     config: wgpu::SurfaceConfiguration,
     is_surface_configured: bool,
+    size: wgpu::Extent3d,
     depth_texture: DepthTexture,
 
     pub scene: Scene,
@@ -79,8 +80,13 @@ impl RenderState {
             view_formats: vec![],
             desired_maximum_frame_latency: 2,
         };
+        let size = wgpu::Extent3d {
+            width: config.width.max(1),
+            height: config.height.max(1),
+            depth_or_array_layers: 1,
+        };
 
-        let depth_texture = DepthTexture::new(&device, &config);
+        let depth_texture = DepthTexture::new(&device, size);
 
         let scene = Scene::new(&device, &config);
 
@@ -91,6 +97,7 @@ impl RenderState {
             queue,
             config,
             is_surface_configured: false,
+            size,
             depth_texture,
             scene,
             window,
@@ -102,10 +109,15 @@ impl RenderState {
         if width > 0 && height > 0 {
             self.config.width = width;
             self.config.height = height;
+            self.size = wgpu::Extent3d {
+                width,
+                height,
+                depth_or_array_layers: 1,
+            };
 
             self.surface.configure(&self.device, &self.config);
             self.is_surface_configured = true;
-            self.depth_texture = DepthTexture::new(&self.device, &self.config);
+            self.depth_texture = DepthTexture::new(&self.device, self.size);
 
             // update camera
             self.scene.camera.resize(width, height);
@@ -158,7 +170,7 @@ impl RenderState {
         }
 
         {
-            // 3d render pass
+            // general 3d render pass
             let mut render_pass: wgpu::RenderPass =
                 encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                     label: Some("3D render Pass"),
@@ -192,6 +204,36 @@ impl RenderState {
             self.scene.render(&mut render_pass);
         }
 
+        {
+            // ocean render pass
+            let mut render_pass: wgpu::RenderPass =
+                encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                    label: Some("Ocean render pass"),
+                    color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                        view: &view,
+                        resolve_target: None,
+                        ops: wgpu::Operations {
+                            load: wgpu::LoadOp::Load,
+                            store: wgpu::StoreOp::Store,
+                        },
+                        depth_slice: None,
+                    })],
+                    depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                        view: &self.depth_texture.view,
+                        depth_ops: Some(wgpu::Operations {
+                            load: wgpu::LoadOp::Load,
+                            store: wgpu::StoreOp::Store,
+                        }),
+                        stencil_ops: None,
+                    }),
+                    timestamp_writes: None,
+                    occlusion_query_set: None,
+                });
+
+            render_pass.set_bind_group(0, &self.scene.bind_group, &[]);
+            self.scene.ocean.render(&mut render_pass);
+        }
+
         self.queue.submit(std::iter::once(encoder.finish()));
         output.present();
 
@@ -214,31 +256,24 @@ impl RenderState {
     }
 }
 
-struct DepthTexture {
+pub(crate) struct DepthTexture {
     view: wgpu::TextureView,
 }
 impl DepthTexture {
-    const TEXTURE_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Depth32Float;
-
-    pub fn new(device: &wgpu::Device, config: &wgpu::SurfaceConfiguration) -> DepthTexture {
-        let size = wgpu::Extent3d {
-            width: config.width.max(1),
-            height: config.height.max(1),
-            depth_or_array_layers: 1,
-        };
-        let descriptor = wgpu::TextureDescriptor {
+    pub fn new(device: &wgpu::Device, size: wgpu::Extent3d) -> DepthTexture {
+        let texture = device.create_texture(&wgpu::TextureDescriptor {
             label: Some("Depth texture"),
             size,
             mip_level_count: 1,
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
-            format: Self::TEXTURE_FORMAT,
+            format: wgpu::TextureFormat::Depth32Float,
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING,
             view_formats: &[],
-        };
-        let texture = device.create_texture(&descriptor);
+        });
 
         let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
+
         Self { view }
     }
 }

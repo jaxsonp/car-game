@@ -1,23 +1,7 @@
-use nalgebra::{DMatrix, Isometry3, Point3, Translation3, UnitQuaternion, Vector3};
+use nalgebra::{Isometry3, Point3, Translation3, UnitQuaternion, Vector3};
 use rapier3d::prelude::*;
 
 use crate::*;
-
-pub struct Ocean {}
-impl Ocean {
-    const HITBOX_SIZE: f32 = 1000.0;
-    const WATER_HEIGHT: f32 = -2.96968;
-}
-impl GameObject for Ocean {
-    const render_meshes: &'static [RawMesh] = load_obj_mesh!("ocean.obj");
-
-    fn get_collision_box() -> ColliderBuilder {
-        ColliderBuilder::heightfield(
-            DMatrix::from_element(2, 2, Self::WATER_HEIGHT),
-            Vector3::new(Self::HITBOX_SIZE, 1.0, Self::HITBOX_SIZE),
-        )
-    }
-}
 
 pub struct Ground {}
 impl GameObject for Ground {

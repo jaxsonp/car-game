@@ -2,7 +2,7 @@ use car_game_assets::{GameObject, objects::Car};
 use nalgebra::{Isometry3, Point3, Rotation3, UnitQuaternion, Vector2, Vector3};
 use rapier3d::prelude::*;
 
-use crate::{controller::CarController, physics::PhysicsHandler};
+use crate::{DYNAMIC_OBJECTS, STATIC_OBJECTS, controller::CarController, physics::PhysicsHandler};
 
 const MASS: f32 = 2400.0;
 
@@ -39,7 +39,8 @@ const WHEEL_RADIUS: f32 = WHEEL_DIAMETER / 2.0;
 const WHEEL_GRIP: f32 = 800.0;
 
 pub struct CarHandler {
-    pub handle: RigidBodyHandle,
+    pub rb_handle: RigidBodyHandle,
+    pub collider_handle: ColliderHandle,
     pub(super) throttle: f32,
     pub(super) turn_angle: f32,
 
@@ -54,16 +55,22 @@ impl CarHandler {
         let rbody = RigidBodyBuilder::dynamic()
             .additional_mass(MASS)
             .position(Isometry3::from_parts(
-                Point3::new(0.0, 5.0, 8.0).into(),
+                Point3::new(0.0, 5.0, 250.0).into(),
                 Rotation3::identity().into(),
             ))
             .can_sleep(false) // car doesn't sleep
             .build();
-        let collider = Car::get_collision_box().build();
-        let (handle, _) = physics.insert_object(rbody, Some(collider));
+        let collider = Car::get_collision_box()
+            .collision_groups(InteractionGroups::new(
+                DYNAMIC_OBJECTS,
+                STATIC_OBJECTS | DYNAMIC_OBJECTS,
+            ))
+            .build();
+        let (rb_handle, collider_handle) = physics.insert_object(rbody, Some(collider));
 
         CarHandler {
-            handle,
+            rb_handle,
+            collider_handle: collider_handle.unwrap(),
             turn_angle: 0.0,
             throttle: 0.0,
             wheels_slipping: [false; 4],
@@ -78,18 +85,22 @@ impl CarHandler {
         adjusted_dt: f32,
         physics: &mut PhysicsHandler,
         controller: Option<&CarController>,
+        water_level: f32,
     ) -> ([Isometry3<f32>; 4], [Option<Point3<f32>>; 4]) {
         use car_game_assets::objects::Car;
 
-        let car_transform = *physics.rigid_bodies[self.handle].position();
+        let car_transform = *physics.rigid_bodies[self.rb_handle].position();
         let car_up_dir: Vector3<f32> = (car_transform.rotation * Vector3::y()).normalize();
         let car_forward_dir: Vector3<f32> = (car_transform.rotation * Vector3::z()).normalize();
 
         // cast rays to see if tires are touching the ground
         self.wheels_grounded = 0;
         let hits = {
-            let query_pipeline =
-                physics.create_query_pipeline(QueryFilter::new().exclude_rigid_body(self.handle));
+            let query_pipeline = physics.create_query_pipeline(
+                QueryFilter::new()
+                    .exclude_rigid_body(self.rb_handle)
+                    .groups(physics.colliders[self.collider_handle].collision_groups()),
+            );
             Car::WHEEL_OFFSETS.map(|wheel_offset| {
                 let ray_origin = car_transform * Point3::from(wheel_offset);
                 let ray = Ray::new(ray_origin, -car_up_dir);
@@ -106,7 +117,7 @@ impl CarHandler {
             })
         };
 
-        let car_rb = &mut physics.rigid_bodies[self.handle];
+        let car_rb = &mut physics.rigid_bodies[self.rb_handle];
         let car_linvel = *car_rb.linvel();
 
         // parsing player input
@@ -249,10 +260,22 @@ impl CarHandler {
             car_rb.apply_impulse(-car_up_dir.scale(downforce), false);
         }
 
+        // ocean float force
+        let water_depth = car_rb.center_of_mass().y - water_level;
+        if water_depth < 0.0 {
+            // underwater
+            car_rb.apply_impulse(Vector3::y() * -water_depth * adjusted_dt * 1000.0, false);
+            car_rb.set_linear_damping(0.35);
+            car_rb.set_angular_damping(0.3);
+        } else {
+            car_rb.set_linear_damping(0.0);
+            car_rb.set_angular_damping(0.0);
+        }
+
         let mut wheel_transforms =
             wheel_positions.map(|pos| Isometry3::from_parts(pos.into(), *car_rb.rotation()));
 
-        // turning front wheels
+        // visually turning front wheels
         wheel_transforms[0].append_rotation_wrt_center_mut(&UnitQuaternion::from_axis_angle(
             &Vector3::y_axis(),
             self.turn_angle,

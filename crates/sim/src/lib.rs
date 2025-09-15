@@ -5,6 +5,7 @@ mod physics;
 use car_game_assets::GameObject;
 use car_game_utils::*;
 use nalgebra::{Point3, Vector3};
+use noise::{NoiseFn, Perlin};
 use rapier3d::prelude::*;
 
 use car::CarHandler;
@@ -12,10 +13,20 @@ use controller::CarController;
 
 use crate::physics::PhysicsHandler;
 
+// collision groups
+const STATIC_OBJECTS: Group = Group::GROUP_1;
+const DYNAMIC_OBJECTS: Group = Group::GROUP_2;
+
+const WATER_LEVEL_BASE: f32 = -2.969756;
+const WATER_LEVEL_MOVEMENT: f32 = 1.0;
+
 pub struct GameSimulation {
+    t: f64,
     physics_handler: PhysicsHandler,
     car_handler: CarHandler,
     pub controller: CarController,
+
+    water_level_noise: Perlin,
 }
 
 impl GameSimulation {
@@ -25,29 +36,40 @@ impl GameSimulation {
         // static hitboxes
         use car_game_assets::objects;
         for collider in [
-            objects::Ground::get_collision_box().build(),
-            objects::Roads::get_collision_box().build(),
-            objects::Buildings::get_collision_box().build(),
-            objects::Streetlights::get_collision_box().build(),
-            objects::Trees1::get_collision_box().build(),
+            objects::Ground::get_collision_box(),
+            objects::Roads::get_collision_box(),
+            objects::Buildings::get_collision_box(),
+            objects::Streetlights::get_collision_box(),
+            objects::Trees1::get_collision_box(),
         ] {
             physics_handler.insert_object(
                 RigidBodyBuilder::new(RigidBodyType::Fixed).build(),
-                Some(collider),
+                Some(
+                    collider
+                        .collision_groups(InteractionGroups::new(STATIC_OBJECTS, DYNAMIC_OBJECTS))
+                        .build(),
+                ),
             );
         }
 
         let car_handler = CarHandler::new(&mut physics_handler);
 
+        let water_level_noise = Perlin::new(216);
+
         GameSimulation {
+            t: 0.0,
             physics_handler,
             car_handler,
             controller: CarController::new(),
+            water_level_noise,
         }
     }
 
     pub fn step(&mut self, adjusted_dt: f32, controller_activated: bool) -> RenderSnapshot {
-        self.physics_handler.step(adjusted_dt);
+        self.t += (adjusted_dt / 60.0) as f64;
+
+        let water_level = WATER_LEVEL_BASE
+            + WATER_LEVEL_MOVEMENT * (self.water_level_noise.get([self.t / 7.0]) as f32 - 0.5);
 
         let (wheel_transforms, skid_contact_points) = self.car_handler.step(
             adjusted_dt,
@@ -57,12 +79,17 @@ impl GameSimulation {
             } else {
                 None
             },
+            water_level,
         );
 
+        self.physics_handler.step(adjusted_dt);
+
         RenderSnapshot {
-            car_transform: *self.physics_handler.rigid_bodies[self.car_handler.handle].position(),
+            car_transform: *self.physics_handler.rigid_bodies[self.car_handler.rb_handle]
+                .position(),
             wheel_transforms,
             skid_contact_points,
+            water_level,
         }
     }
 
@@ -75,8 +102,10 @@ impl GameSimulation {
         const CAM_EYE_DIST: f32 = 6.25;
         const CAM_TARGET_HEIGHT: f32 = 2.0;
 
-        let car_transform = *self.physics_handler.rigid_bodies[self.car_handler.handle].position();
-        let car_linear_vel = *self.physics_handler.rigid_bodies[self.car_handler.handle].linvel();
+        let car_transform =
+            *self.physics_handler.rigid_bodies[self.car_handler.rb_handle].position();
+        let car_linear_vel =
+            *self.physics_handler.rigid_bodies[self.car_handler.rb_handle].linvel();
 
         let forward_dir: Vector3<f32> = {
             let mut car_forward = car_transform.rotation.transform_vector(&Vector3::z());
@@ -97,7 +126,9 @@ impl GameSimulation {
         // casting ray backwards
         let dist = if let Some((_, dist)) = self
             .physics_handler
-            .create_query_pipeline(QueryFilter::new().exclude_rigid_body(self.car_handler.handle))
+            .create_query_pipeline(
+                QueryFilter::new().exclude_rigid_body(self.car_handler.rb_handle),
+            )
             .cast_ray(&Ray::new(target_eye, -forward_dir), CAM_EYE_DIST, true)
         {
             dist
@@ -124,7 +155,7 @@ impl GameSimulation {
             self.car_handler.turn_input,
             self.car_handler.throttle,
             self.car_handler.turn_angle,
-            self.physics_handler.rigid_bodies[self.car_handler.handle]
+            self.physics_handler.rigid_bodies[self.car_handler.rb_handle]
                 .linvel()
                 .magnitude(),
         )

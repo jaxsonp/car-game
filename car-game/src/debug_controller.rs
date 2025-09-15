@@ -18,7 +18,7 @@ pub struct DebugCameraController {
 
 impl DebugCameraController {
     /// units per frame
-    const MOVE_SPEED: f32 = 0.2;
+    const MOVE_SPEED: f32 = 0.35;
     /// rads per frame
     const TURN_SPEED: f32 = 1.5f32.to_radians();
 

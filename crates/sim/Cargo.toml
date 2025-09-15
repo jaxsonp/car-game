@@ -11,4 +11,5 @@ car-game-assets = { workspace = true }
 car-game-utils = { workspace = true }
 rapier3d = { workspace = true }
 log = { workspace = true }
+noise = "0.9"
 winit = { workspace = true } 

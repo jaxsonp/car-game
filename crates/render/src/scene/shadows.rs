@@ -69,7 +69,7 @@ impl ShadowMapper {
         let view_proj_buffer = device.create_buffer(&BufferDescriptor {
             label: Some("shadow map view proj buffer"),
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-            size: size_of::<Matrix4<f32>>() as u64,
+            size: size_of::<Matrix4Uniform>() as u64,
             mapped_at_creation: false,
         });
 
