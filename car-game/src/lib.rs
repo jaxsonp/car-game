@@ -6,6 +6,7 @@ use std::sync::Arc;
 
 use car_game_render::RenderState;
 use car_game_sim::GameSimulation;
+use car_game_utils::RingBuffer;
 use wasm_bindgen::prelude::*;
 use web_sys::js_sys::JsString;
 use winit::{
@@ -49,6 +50,7 @@ pub struct App {
 
     sim: GameSimulation,
     fps_counter: FramerateCounter,
+    speed_averager: RingBuffer,
     debug_text_shown: bool,
     debug_camera_activated: bool,
     debug_camera_controller: DebugCameraController,
@@ -58,6 +60,7 @@ impl App {
     pub fn new(event_loop: &EventLoop<RenderState>, canvas_id: String) -> Self {
         let proxy = Some(event_loop.create_proxy());
         let fps_counter = FramerateCounter::new(40);
+        let speed_averager = RingBuffer::new(30, 0.0);
         Self {
             canvas_id,
             proxy,
@@ -65,6 +68,7 @@ impl App {
             sim: GameSimulation::new(),
             paused: false,
             fps_counter,
+            speed_averager,
             debug_text_shown: false,
             debug_camera_activated: false,
             debug_camera_controller: DebugCameraController::new(),
@@ -74,7 +78,6 @@ impl App {
 
 impl ApplicationHandler<RenderState> for App {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
-        log::debug!("Application resumed");
         let mut window_attributes = Window::default_attributes();
 
         use wasm_bindgen::JsCast;
@@ -103,6 +106,13 @@ impl ApplicationHandler<RenderState> for App {
                         .is_ok()
                 )
             });
+        }
+
+        #[cfg(debug_assertions)]
+        {
+            // show debug text by default if debug build
+            self.debug_text_shown = true;
+            web_interface::show_debug_text(true);
         }
     }
 
@@ -166,6 +176,9 @@ impl ApplicationHandler<RenderState> for App {
                         );
                     }
 
+                    self.speed_averager.push(snapshot.car_speed / 35.0);
+                    web_interface::set_speed(self.speed_averager.mean);
+
                     Some(snapshot)
                 } else {
                     None
@@ -199,8 +212,8 @@ impl ApplicationHandler<RenderState> for App {
                     _ => {}
                 }
                 if pressed && matches!(logical_key, Key::Named(NamedKey::F1)) {
-                    log::debug!("Toggled debug text");
                     self.debug_text_shown = !self.debug_text_shown;
+                    log::debug!("Toggled debug text: {}", self.debug_text_shown);
                     web_interface::show_debug_text(self.debug_text_shown);
                 }
 

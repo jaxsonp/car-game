@@ -84,9 +84,18 @@ impl GameSimulation {
 
         self.physics_handler.step(adjusted_dt);
 
+        let car_rb = &self.physics_handler.rigid_bodies[self.car_handler.rb_handle];
+
+        let car_transform = *car_rb.position();
+        let car_speed = if self.car_handler.wheels_grounded > 0 {
+            car_rb.linvel().magnitude()
+        } else {
+            0.0
+        };
+
         RenderSnapshot {
-            car_transform: *self.physics_handler.rigid_bodies[self.car_handler.rb_handle]
-                .position(),
+            car_transform,
+            car_speed,
             wheel_transforms,
             skid_contact_points,
             water_level,

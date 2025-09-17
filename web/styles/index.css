@@ -65,6 +65,36 @@ main > * {
 	row-gap: 1rem;
 }
 
+#speed-bar-container {
+	position: absolute;
+	right: 0;
+	bottom: 0;
+	width: 1rem;
+	height: 50%;
+}
+
+#speed-gauge-container {
+	position: absolute;
+	right: 2rem;
+	bottom: 2rem;
+	height: 25%;
+	aspect-ratio: 1;
+	transform: rotateY(20deg) rotateX(-20deg);
+}
+
+#speed-gauge {
+	width: 100%;
+	height: 100%;
+
+	--value: 0.8;
+	--thickness: 4%;
+
+	border-radius: 50%;
+	background: 
+		conic-gradient(from -135deg, whitesmoke calc(270deg*var(--value)), transparent calc(270deg*var(--value)) 270deg, transparent 270deg);
+	mask: radial-gradient(closest-side at center, #0000 calc(100% - var(--thickness)), #000 calc(100% - var(--thickness) + 2px));
+}
+
 #debug-text {
 	position: absolute;
 	left: 2px;

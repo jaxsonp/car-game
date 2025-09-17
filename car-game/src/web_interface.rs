@@ -10,4 +10,7 @@ extern "C" {
 
     #[wasm_bindgen(js_name = setDebugText)]
     pub fn set_debug_text(string: &str);
+
+    #[wasm_bindgen(js_name = setSpeed)]
+    pub fn set_speed(string: f32);
 }

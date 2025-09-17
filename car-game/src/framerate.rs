@@ -1,3 +1,4 @@
+use car_game_utils::RingBuffer;
 use instant::Instant;
 
 /// Delta time is capped to prevent physics bugs when unfocuses can't be detected
@@ -6,25 +7,14 @@ const DELTA_TIME_MAX: f32 = 0.1;
 /// Tracks framerate in a circular buffer, maintaining the average
 pub struct FramerateCounter {
     last_tick: Instant,
-
-    buffer: Vec<f32>,
-    buffer_pos: usize,
-    buffer_mean: f32,
-
-    inverse_size: f32,
+    buf: RingBuffer,
 }
 
 impl FramerateCounter {
     pub fn new(buffer_size: usize) -> Self {
-        if buffer_size == 0 {
-            panic!("bruh");
-        }
         FramerateCounter {
             last_tick: Instant::now(),
-            buffer: vec![DELTA_TIME_MAX; buffer_size],
-            buffer_pos: 0,
-            buffer_mean: DELTA_TIME_MAX,
-            inverse_size: 1.0 / (buffer_size as f32),
+            buf: RingBuffer::new(buffer_size, DELTA_TIME_MAX),
         }
     }
 
@@ -38,20 +28,13 @@ impl FramerateCounter {
             delta = DELTA_TIME_MAX;
         }
 
-        // inserting value into buffer
-        let old_val = self.buffer[self.buffer_pos];
-        self.buffer[self.buffer_pos] = delta;
-        self.buffer_pos = (self.buffer_pos + 1) % self.buffer.len();
-
-        // updating buffer mean
-        self.buffer_mean -= old_val * self.inverse_size;
-        self.buffer_mean += delta * self.inverse_size;
+        self.buf.push(delta);
 
         self.last_tick = now;
         return delta;
     }
 
     pub fn fps(&self) -> f32 {
-        1.0 / self.buffer_mean
+        1.0 / self.buf.mean
     }
 }

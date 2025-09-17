@@ -2,6 +2,7 @@ use nalgebra::{Isometry3, Point3, Vector3};
 
 pub struct RenderSnapshot {
     pub car_transform: Isometry3<f32>,
+    pub car_speed: f32,
     /// How far below offset each wheel is (front-driver, front-pass, rear-driver, rear-pass)
     pub wheel_transforms: [Isometry3<f32>; 4],
     pub skid_contact_points: [Option<Point3<f32>>; 4],
@@ -38,5 +39,38 @@ impl Camera {
 
     pub fn resize(&mut self, width: u32, height: u32) {
         self.aspect_ratio = (width as f32) / (height as f32);
+    }
+}
+
+/// A circular buffer that tracks the current mean of its population
+pub struct RingBuffer {
+    buffer: Vec<f32>,
+    pos: usize,
+    inverse_size: f32,
+
+    pub mean: f32,
+}
+impl RingBuffer {
+    pub fn new(size: usize, init_value: f32) -> Self {
+        if size == 0 {
+            panic!("bruh");
+        }
+        RingBuffer {
+            buffer: vec![init_value; size],
+            pos: 0,
+            inverse_size: 1.0 / (size as f32),
+            mean: init_value,
+        }
+    }
+
+    /// push a new value into the buffer, returns the resulting mean
+    pub fn push(&mut self, val: f32) {
+        let old_val = self.buffer[self.pos];
+        self.buffer[self.pos] = val;
+        self.pos = (self.pos + 1) % self.buffer.len();
+
+        // updating buffer mean
+        self.mean -= old_val * self.inverse_size;
+        self.mean += val * self.inverse_size;
     }
 }

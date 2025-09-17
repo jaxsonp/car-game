@@ -5,6 +5,7 @@ declare global {
     showPauseMenu: (show: boolean) => void;
     showDebugText: (show: boolean) => void;
     setDebugText: (text: string) => void;
+    setSpeed: (speed: number) => void;
   }
 }
 
@@ -32,5 +33,14 @@ window.setDebugText = (text: string): void => {
 		debugTextBox.innerText = text;
 	} else {
 		console.warn('Failed to find debug text element');
+	}
+}
+
+window.setSpeed = (speed: number): void => {
+	const gauge = document.getElementById("speed-gauge");
+	if (gauge) {
+		gauge.style.setProperty('--value', speed.toString());
+	} else {
+		console.warn('Failed to find speed gauge element');
 	}
 }
