@@ -17,7 +17,7 @@ use crate::physics::PhysicsHandler;
 const STATIC_OBJECTS: Group = Group::GROUP_1;
 const DYNAMIC_OBJECTS: Group = Group::GROUP_2;
 
-const WATER_LEVEL_BASE: f32 = -2.969756;
+const WATER_LEVEL_BASE: f32 = -1.68847;
 const WATER_LEVEL_MOVEMENT: f32 = 1.0;
 
 pub struct GameSimulation {

@@ -88,7 +88,7 @@ impl RenderState {
 
         let depth_texture = DepthTexture::new(&device, size);
 
-        let scene = Scene::new(&device, &config);
+        let scene = Scene::new(&device, &config, &depth_texture);
 
         Ok(Self {
             surface,
@@ -117,7 +117,11 @@ impl RenderState {
 
             self.surface.configure(&self.device, &self.config);
             self.is_surface_configured = true;
+
             self.depth_texture = DepthTexture::new(&self.device, self.size);
+            self.scene
+                .ocean
+                .handle_resize(&self.device, &self.depth_texture);
 
             // update camera
             self.scene.camera.resize(width, height);
@@ -203,7 +207,28 @@ impl RenderState {
 
             self.scene.render(&mut render_pass);
         }
+        self.queue.submit(std::iter::once(encoder.finish()));
+        let mut encoder = self
+            .device
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                label: Some("Render Encoder"),
+            });
 
+        /*encoder.copy_texture_to_texture(
+            TexelCopyTextureInfo {
+                texture: &self.depth_texture.texture,
+                mip_level: 0,
+                origin: wgpu::Origin3d::ZERO,
+                aspect: wgpu::TextureAspect::All,
+            },
+            TexelCopyTextureInfo {
+                texture: &self.scene.ocean.,
+                mip_level: 0,
+                origin: wgpu::Origin3d::ZERO,
+                aspect: wgpu::TextureAspect::All,
+            },
+            self.size,
+        );*/
         {
             // ocean render pass
             let mut render_pass: wgpu::RenderPass =
@@ -218,14 +243,7 @@ impl RenderState {
                         },
                         depth_slice: None,
                     })],
-                    depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
-                        view: &self.depth_texture.view,
-                        depth_ops: Some(wgpu::Operations {
-                            load: wgpu::LoadOp::Load,
-                            store: wgpu::StoreOp::Store,
-                        }),
-                        stencil_ops: None,
-                    }),
+                    depth_stencil_attachment: None,
                     timestamp_writes: None,
                     occlusion_query_set: None,
                 });
@@ -235,8 +253,8 @@ impl RenderState {
         }
 
         self.queue.submit(std::iter::once(encoder.finish()));
-        output.present();
 
+        output.present();
         Ok(())
     }
 
@@ -256,7 +274,7 @@ impl RenderState {
     }
 }
 
-pub(crate) struct DepthTexture {
+pub struct DepthTexture {
     view: wgpu::TextureView,
 }
 impl DepthTexture {

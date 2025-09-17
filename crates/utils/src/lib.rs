@@ -18,7 +18,7 @@ pub struct Camera {
 impl Camera {
     pub const DEFAULT_FOVY: f32 = 70.0f32.to_radians();
     pub const CLIP_NEAR: f32 = 0.1;
-    pub const CLIP_FAR: f32 = 1000.0;
+    pub const CLIP_FAR: f32 = 500.0;
 
     pub fn new<P: Into<Point3<f32>>, V: Into<Vector3<f32>>>(
         eye: P,

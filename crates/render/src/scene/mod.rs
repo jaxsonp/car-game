@@ -16,8 +16,11 @@ use wgpu::{
     util::{BufferInitDescriptor, DeviceExt},
 };
 
-use crate::uniforms::Vector3Uniform;
-use camera::{CameraUniformMatrix, get_view_projection_matrix};
+use crate::{
+    DepthTexture,
+    uniforms::{Matrix4Uniform, Vector3Uniform},
+};
+use camera::get_view_projection_matrix;
 #[cfg(debug_assertions)]
 use debug::DebugLineVertex;
 use model::Model;
@@ -44,7 +47,11 @@ pub struct Scene {
 }
 
 impl Scene {
-    pub(crate) fn new(device: &wgpu::Device, config: &wgpu::SurfaceConfiguration) -> Scene {
+    pub fn new(
+        device: &wgpu::Device,
+        config: &wgpu::SurfaceConfiguration,
+        depth_texture: &DepthTexture,
+    ) -> Scene {
         let scene_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("scene mesh shader"),
             source: wgpu::ShaderSource::Wgsl(include_str!("../shaders/scene.wgsl").into()),
@@ -118,7 +125,7 @@ impl Scene {
         let camera_buffer = device.create_buffer(&BufferDescriptor {
             label: Some("Camera Buffer"),
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-            size: size_of::<CameraUniformMatrix>() as u64,
+            size: size_of::<Matrix4Uniform>() as u64,
             mapped_at_creation: false,
         });
 
@@ -362,7 +369,7 @@ impl Scene {
         ];
         let skidlines = [0, 1, 2, 3].map(|i| SkidLine::new(device, i));
 
-        let ocean = Ocean::new(device, config, &scene_bind_group_layout);
+        let ocean = Ocean::new(device, config, &scene_bind_group_layout, depth_texture);
 
         Scene {
             mesh_render_pipeline,

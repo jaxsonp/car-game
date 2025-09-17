@@ -1,25 +1,29 @@
 use car_game_utils::RenderSnapshot;
 use wgpu::{
-    BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout, BindGroupLayoutDescriptor,
-    BindGroupLayoutEntry, BindingType, Buffer, BufferBindingType, BufferDescriptor, BufferUsages,
-    PipelineCompilationOptions, PipelineLayoutDescriptor, Queue, RenderPass, RenderPipeline,
-    RenderPipelineDescriptor, ShaderStages, SurfaceConfiguration, VertexState,
+    AddressMode, BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout,
+    BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingResource, BindingType, Buffer,
+    BufferBindingType, BufferDescriptor, BufferUsages, PipelineCompilationOptions,
+    PipelineLayoutDescriptor, Queue, RenderPass, RenderPipeline, RenderPipelineDescriptor, Sampler,
+    ShaderStages, SurfaceConfiguration, VertexState,
     util::{BufferInitDescriptor, DeviceExt},
 };
 
-use crate::uniforms::FloatUniform;
+use crate::{DepthTexture, uniforms::FloatUniform};
 
 pub struct Ocean {
     bind_group: BindGroup,
+    bind_group_layout: BindGroupLayout,
     render_pipeline: RenderPipeline,
     index_buffer: Buffer,
     water_level_buffer: Buffer,
+    depth_texture_sampler: Sampler,
 }
 impl Ocean {
-    pub(crate) fn new(
+    pub fn new(
         device: &wgpu::Device,
         config: &SurfaceConfiguration,
         scene_bind_group_layout: &BindGroupLayout,
+        depth_texture: &DepthTexture,
     ) -> Self {
         let water_level_buffer = device.create_buffer(&BufferDescriptor {
             label: Some("ocean rendering water level buffer"),
@@ -39,25 +43,64 @@ impl Ocean {
 
         let bind_group_layout = device.create_bind_group_layout(&BindGroupLayoutDescriptor {
             label: Some("ocean renderer bind group layout"),
-            entries: &[BindGroupLayoutEntry {
-                binding: 0,
-                visibility: ShaderStages::VERTEX,
-                ty: BindingType::Buffer {
-                    ty: BufferBindingType::Uniform,
-                    has_dynamic_offset: false,
-                    min_binding_size: None,
+            entries: &[
+                BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: ShaderStages::VERTEX,
+                    ty: BindingType::Buffer {
+                        ty: BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
                 },
-                count: None,
-            }],
+                wgpu::BindGroupLayoutEntry {
+                    binding: 1,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Texture {
+                        multisampled: false,
+                        view_dimension: wgpu::TextureViewDimension::D2,
+                        sample_type: wgpu::TextureSampleType::Depth,
+                    },
+                    count: None,
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 2,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Comparison),
+                    count: None,
+                },
+            ],
+        });
+
+        let depth_texture_sampler = device.create_sampler(&wgpu::SamplerDescriptor {
+            label: Some("depth texture sampler"),
+            address_mode_u: AddressMode::Repeat,
+            address_mode_v: AddressMode::Repeat,
+            address_mode_w: AddressMode::Repeat,
+            mag_filter: wgpu::FilterMode::Nearest,
+            min_filter: wgpu::FilterMode::Nearest,
+            compare: Some(wgpu::CompareFunction::Greater),
+            ..Default::default()
         });
 
         let bind_group = device.create_bind_group(&BindGroupDescriptor {
             label: Some("ocean renderer bind group"),
             layout: &bind_group_layout,
-            entries: &[BindGroupEntry {
-                binding: 0,
-                resource: water_level_buffer.as_entire_binding(),
-            }],
+            entries: &[
+                BindGroupEntry {
+                    binding: 0,
+                    resource: water_level_buffer.as_entire_binding(),
+                },
+                BindGroupEntry {
+                    binding: 1,
+                    resource: BindingResource::TextureView(&depth_texture.view),
+                },
+                BindGroupEntry {
+                    binding: 2,
+                    resource: BindingResource::Sampler(&depth_texture_sampler),
+                },
+            ],
         });
 
         let render_pipeline_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
@@ -94,18 +137,13 @@ impl Ocean {
                 entry_point: None,
                 targets: &[Some(wgpu::ColorTargetState {
                     format: config.format,
-                    blend: Some(wgpu::BlendState::REPLACE),
+                    blend: Some(wgpu::BlendState::ALPHA_BLENDING),
                     write_mask: wgpu::ColorWrites::ALL,
                 })],
                 compilation_options: wgpu::PipelineCompilationOptions::default(),
             }),
-            depth_stencil: Some(wgpu::DepthStencilState {
-                format: wgpu::TextureFormat::Depth32Float,
-                depth_write_enabled: true,
-                depth_compare: wgpu::CompareFunction::Less,
-                stencil: wgpu::StencilState::default(),
-                bias: wgpu::DepthBiasState::default(),
-            }),
+            // handled manually
+            depth_stencil: None,
             multisample: wgpu::MultisampleState {
                 count: 1,
                 mask: !0,
@@ -117,10 +155,33 @@ impl Ocean {
 
         Ocean {
             bind_group,
+            bind_group_layout,
             render_pipeline,
             water_level_buffer,
             index_buffer,
+            depth_texture_sampler,
         }
+    }
+
+    pub fn handle_resize(&mut self, device: &wgpu::Device, depth_texture: &DepthTexture) {
+        self.bind_group = device.create_bind_group(&BindGroupDescriptor {
+            label: Some("ocean renderer bind group"),
+            layout: &self.bind_group_layout,
+            entries: &[
+                BindGroupEntry {
+                    binding: 0,
+                    resource: self.water_level_buffer.as_entire_binding(),
+                },
+                BindGroupEntry {
+                    binding: 1,
+                    resource: BindingResource::TextureView(&depth_texture.view),
+                },
+                BindGroupEntry {
+                    binding: 2,
+                    resource: BindingResource::Sampler(&self.depth_texture_sampler),
+                },
+            ],
+        });
     }
 
     pub fn prepare(&mut self, queue: &Queue, render_snapshot: &RenderSnapshot) {
