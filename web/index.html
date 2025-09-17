@@ -4,7 +4,7 @@
 		<meta charset="UTF-8" />
 		<title>Hello World - Rust</title>
 		<link rel="stylesheet" href="styles/index.css"/>
-		<script src="js/wasm_interface.js"></script>
+		<script type="module" src="scripts/wasm_interface.js"></script>
 	</head>
 	<body>
 		<main>
@@ -24,9 +24,10 @@
 						<p>F1</p><p>Toggle debug text</p>
 					</div>
 				</div>
+				<div style="right: 0; width: 8px; height: 100%;"></div>
 				<p><span id="debug-text"></span></p>
 			</div>
 		</main>
-		<script type="module" src="js/run_game.js"></script>
+		<script type="module" src="scripts/run_game.js"></script>
 	</body>
 </html>

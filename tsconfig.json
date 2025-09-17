@@ -1,0 +1,13 @@
+{
+	"compilerOptions": {
+		"target": "ES2015",
+		"lib": [
+			"ES2015",
+			"dom",
+		],
+		"strict": true,
+	},
+	"include": [
+		"web/scripts/*.ts"
+	]
+}

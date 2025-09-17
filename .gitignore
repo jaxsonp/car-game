@@ -1,5 +1,8 @@
 /target
 /wasm-pack.log
 
+/web/pkg/*
+/web/scripts/*.js
+
 *.blend1
 *.blend
