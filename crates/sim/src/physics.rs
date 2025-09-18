@@ -30,8 +30,8 @@ impl PhysicsHandler {
         }
     }
 
-    pub fn step(&mut self, adjusted_td: f32) {
-        self.integration_params.dt = adjusted_td / 60.0;
+    pub fn step(&mut self, dt: f32) {
+        self.integration_params.dt = dt;
 
         self.physics_pipeline.step(
             &vector![0.0, -GRAVITY, 0.0],

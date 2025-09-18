@@ -80,20 +80,67 @@ main > * {
 	height: 25%;
 	aspect-ratio: 1;
 	transform: rotateY(20deg) rotateX(-20deg);
+
+	--value: 0;
+	--thickness: 0.5rem;
+
+	display: grid;
+	grid-auto-columns: 2;
+	grid-auto-rows: 2;
 }
 
-#speed-gauge {
+#speed-gauge-l {
+	grid-area: 1 / 1 / 3 / 2;
 	width: 100%;
 	height: 100%;
 
-	--value: 0.8;
-	--thickness: 4%;
-
-	border-radius: 50%;
-	background: 
-		conic-gradient(from -135deg, whitesmoke calc(270deg*var(--value)), transparent calc(270deg*var(--value)) 270deg, transparent 270deg);
-	mask: radial-gradient(closest-side at center, #0000 calc(100% - var(--thickness)), #000 calc(100% - var(--thickness) + 2px));
+	transform-origin: center right;
+	transform: rotate(45deg);
+	overflow: hidden;
 }
+#speed-gauge-r {
+	grid-area: 1 / 2 / 2 / 3;
+	width: 100%;
+	height: 100%;
+
+	transform-origin: bottom left;
+	transform: rotate(45deg);
+	overflow: hidden;
+}
+
+#speed-gauge-r::before, #speed-gauge-l::before {
+	content: '';
+	display: block;
+
+	width: 100%;
+	height: 100%;
+
+	background: whitesmoke;
+	will-change: transform;
+}
+#speed-gauge-l::before {
+	mask: radial-gradient(farthest-side at center right, transparent calc(100% - var(--thickness)), black calc(100% - var(--thickness) + 0.3rem) 100%, transparent 100%);
+	transform-origin: center right;
+	transform: rotateZ(calc(-180deg + min(var(--value), 0.66667) * 270deg));
+}
+#speed-gauge-r::before {
+	mask: radial-gradient(farthest-side at bottom left, transparent calc(100% - var(--thickness)), black calc(100% - var(--thickness) + 0.3rem) 100%, transparent 100%);
+	transform-origin: bottom left;
+	transform: rotateZ(calc(-90deg + max(min(var(--value), 1) - 0.66667, 0) * 270deg));
+}
+
+#speed-gauge-needle {
+	grid-area: 1 / 1 / 3 / 3;
+	width: 100%;
+	height: 100%;
+
+	background-color: whitesmoke;
+	clip-path: polygon(50% 0%, 51% 50%, 49% 50%);
+
+	will-change: transform;
+	transform: rotateZ(calc(min(var(--value), 1) * 270deg - 135deg));
+}
+
 
 #debug-text {
 	position: absolute;

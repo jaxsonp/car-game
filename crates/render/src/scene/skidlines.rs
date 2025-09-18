@@ -3,7 +3,7 @@ use nalgebra::{Point3, Vector3};
 use wgpu::{Buffer, BufferDescriptor, BufferUsages, RenderPass};
 
 // how many vertex's are saved at a time
-const BUFFER_SIZE: u64 = 900;
+const BUFFER_SIZE: u64 = 300;
 
 const SKID_SIZE: f32 = 0.3;
 const SKID_OFFSET: f32 = 0.05;

@@ -1,8 +1,12 @@
+mod controller;
+
 use car_game_assets::{GameObject, objects::Car};
 use nalgebra::{Isometry3, Point3, Rotation3, UnitQuaternion, Vector2, Vector3};
 use rapier3d::prelude::*;
 
-use crate::{DYNAMIC_OBJECTS, STATIC_OBJECTS, controller::CarController, physics::PhysicsHandler};
+use crate::physics::PhysicsHandler;
+
+pub use controller::CarController;
 
 const MASS: f32 = 2400.0;
 
@@ -45,8 +49,8 @@ pub struct CarHandler {
     pub(super) turn_angle: f32,
 
     wheels_slipping: [bool; 4],
-
-    pub wheels_grounded: u32,
+    pub wheels_grounded: [bool; 4],
+    pub n_wheels_grounded: u32,
     pub drive_input: DriveInputState,
     pub turn_input: TurnInputState,
 }
@@ -60,12 +64,7 @@ impl CarHandler {
             ))
             .can_sleep(false) // car doesn't sleep
             .build();
-        let collider = Car::get_collision_box()
-            .collision_groups(InteractionGroups::new(
-                DYNAMIC_OBJECTS,
-                STATIC_OBJECTS | DYNAMIC_OBJECTS,
-            ))
-            .build();
+        let collider = Car::get_collision_box().build();
         let (rb_handle, collider_handle) = physics.insert_object(rbody, Some(collider));
 
         CarHandler {
@@ -74,7 +73,8 @@ impl CarHandler {
             turn_angle: 0.0,
             throttle: 0.0,
             wheels_slipping: [false; 4],
-            wheels_grounded: 0,
+            wheels_grounded: [false; 4],
+            n_wheels_grounded: 0,
             drive_input: DriveInputState::Coasting,
             turn_input: TurnInputState::None,
         }
@@ -82,19 +82,21 @@ impl CarHandler {
 
     pub fn step(
         &mut self,
-        adjusted_dt: f32,
+        dt: f32,
         physics: &mut PhysicsHandler,
         controller: Option<&CarController>,
         water_level: f32,
     ) -> ([Isometry3<f32>; 4], [Option<Point3<f32>>; 4]) {
         use car_game_assets::objects::Car;
 
+        let adjusted_dt = dt * 60.0;
+
         let car_transform = *physics.rigid_bodies[self.rb_handle].position();
         let car_up_dir: Vector3<f32> = (car_transform.rotation * Vector3::y()).normalize();
         let car_forward_dir: Vector3<f32> = (car_transform.rotation * Vector3::z()).normalize();
 
         // cast rays to see if tires are touching the ground
-        self.wheels_grounded = 0;
+        self.n_wheels_grounded = 0;
         let hits = {
             let query_pipeline = physics.create_query_pipeline(
                 QueryFilter::new()
@@ -109,13 +111,14 @@ impl CarHandler {
                     SUSPENSION_MAX + WHEEL_RADIUS,
                     false,
                 ) {
-                    self.wheels_grounded += 1;
+                    self.n_wheels_grounded += 1;
                     (ray, Some(hit_dist))
                 } else {
                     (ray, None)
                 }
             })
         };
+        self.wheels_grounded = hits.map(|(_, hit)| hit.is_some());
 
         let car_rb = &mut physics.rigid_bodies[self.rb_handle];
         let car_linvel = *car_rb.linvel();
@@ -255,7 +258,7 @@ impl CarHandler {
         );
 
         // apply downforce if car is grounded and moving fast
-        if self.wheels_grounded > 0 {
+        if self.n_wheels_grounded > 0 {
             let downforce = car_linvel.magnitude() * DOWNFORCE_COEFFICIENT * adjusted_dt;
             car_rb.apply_impulse(-car_up_dir.scale(downforce), false);
         }

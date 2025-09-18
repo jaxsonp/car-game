@@ -24,8 +24,13 @@
 						<p>F1</p><p>Toggle debug text</p>
 					</div>
 				</div>
-				<div id="speed-gauge-container"><div id="speed-gauge"></div></div>
-				<p><span id="debug-text"></span></p>
+				<div id="speed-gauge-container">
+					<!-- split into 2 cus can, it would take too long to explain why -->
+					<div id="speed-gauge-l"></div>
+					<div id="speed-gauge-r"></div>
+					<div id="speed-gauge-needle"></div>
+				</div>
+				<pre id="debug-text"></pre>
 			</div>
 		</main>
 		<script type="module" src="scripts/run_game.js"></script>

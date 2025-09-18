@@ -6,7 +6,10 @@ use wgpu::{
     RenderPipeline, Sampler, ShaderModule, ShaderStages, TextureView,
 };
 
-use crate::{scene::model::Model, uniforms::Matrix4Uniform};
+use crate::{
+    scene::{camera::OPENGL_TO_WGPU_MATRIX, model::Model},
+    uniforms::Matrix4Uniform,
+};
 
 pub const SUN_DIR: Vector3<f32> = Vector3::new(-1.0, 2.5, 1.2);
 
@@ -153,15 +156,7 @@ impl ShadowMapper {
     fn get_view_projection_matrix(car_pos: Point3<f32>) -> Matrix4<f32> {
         let view = Matrix4::look_at_rh(&(car_pos + (SUN_DIR * 300.0)), &car_pos, &Vector3::y());
         let size = Self::SHADOW_MAP_SIZE / 2.0;
-        let proj = Orthographic3::new(-size, size, -size, size, 200.0, 700.0).to_homogeneous();
+        let proj = Orthographic3::new(-size, size, -size, size, 100.0, 1000.0).to_homogeneous();
         return OPENGL_TO_WGPU_MATRIX * proj * view;
     }
 }
-
-#[rustfmt::skip]
-pub const OPENGL_TO_WGPU_MATRIX: Matrix4<f32> = Matrix4::new(
-    1.0, 0.0, 0.0, 0.0,
-    0.0, 1.0, 0.0, 0.0,
-    0.0, 0.0, 0.5, 0.0,
-    0.0, 0.0, 0.5, 1.0,
-);

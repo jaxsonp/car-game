@@ -1,5 +1,4 @@
 mod car;
-mod controller;
 mod physics;
 
 use car_game_assets::GameObject;
@@ -8,20 +7,15 @@ use nalgebra::{Point3, Vector3};
 use noise::{NoiseFn, Perlin};
 use rapier3d::prelude::*;
 
-use car::CarHandler;
-use controller::CarController;
-
 use crate::physics::PhysicsHandler;
-
-// collision groups
-const STATIC_OBJECTS: Group = Group::GROUP_1;
-const DYNAMIC_OBJECTS: Group = Group::GROUP_2;
+use car::{CarController, CarHandler};
 
 const WATER_LEVEL_BASE: f32 = -1.68847;
 const WATER_LEVEL_MOVEMENT: f32 = 1.0;
 
 pub struct GameSimulation {
-    t: f64,
+    pub t: u64,
+    pub real_t: f64,
     physics_handler: PhysicsHandler,
     car_handler: CarHandler,
     pub controller: CarController,
@@ -44,11 +38,7 @@ impl GameSimulation {
         ] {
             physics_handler.insert_object(
                 RigidBodyBuilder::new(RigidBodyType::Fixed).build(),
-                Some(
-                    collider
-                        .collision_groups(InteractionGroups::new(STATIC_OBJECTS, DYNAMIC_OBJECTS))
-                        .build(),
-                ),
+                Some(collider.build()),
             );
         }
 
@@ -57,7 +47,8 @@ impl GameSimulation {
         let water_level_noise = Perlin::new(216);
 
         GameSimulation {
-            t: 0.0,
+            t: 0,
+            real_t: 0.0,
             physics_handler,
             car_handler,
             controller: CarController::new(),
@@ -65,14 +56,14 @@ impl GameSimulation {
         }
     }
 
-    pub fn step(&mut self, adjusted_dt: f32, controller_activated: bool) -> RenderSnapshot {
-        self.t += (adjusted_dt / 60.0) as f64;
-
+    pub fn step(&mut self, dt: f32, controller_activated: bool) -> RenderSnapshot {
         let water_level = WATER_LEVEL_BASE
-            + WATER_LEVEL_MOVEMENT * (self.water_level_noise.get([self.t / 7.0]) as f32 - 0.5);
+            + WATER_LEVEL_MOVEMENT * (self.water_level_noise.get([self.real_t / 7.0]) as f32 - 0.5);
+
+        self.physics_handler.step(dt);
 
         let (wheel_transforms, skid_contact_points) = self.car_handler.step(
-            adjusted_dt,
+            dt,
             &mut self.physics_handler,
             if controller_activated {
                 Some(&self.controller)
@@ -82,16 +73,17 @@ impl GameSimulation {
             water_level,
         );
 
-        self.physics_handler.step(adjusted_dt);
-
         let car_rb = &self.physics_handler.rigid_bodies[self.car_handler.rb_handle];
 
         let car_transform = *car_rb.position();
-        let car_speed = if self.car_handler.wheels_grounded > 0 {
+        let car_speed = if self.car_handler.n_wheels_grounded > 0 {
             car_rb.linvel().magnitude()
         } else {
             0.0
         };
+
+        self.t += 1;
+        self.real_t += dt as f64;
 
         RenderSnapshot {
             car_transform,
@@ -106,7 +98,6 @@ impl GameSimulation {
         const CAM_EYE_LERP: f32 = 0.06;
         const CAM_TARGET_LERP: f32 = 0.3;
 
-        //const CAM_EYE_OFFSET: Vector3<f32> = Vector3::new(0.0, 5.0, -8.0);
         const CAM_EYE_HEIGHT: f32 = 5.0;
         const CAM_EYE_DIST: f32 = 6.25;
         const CAM_TARGET_HEIGHT: f32 = 2.0;
@@ -123,7 +114,7 @@ impl GameSimulation {
             linvel_forward.y = 0.0;
 
             // use linear velocity as forward direction if not grounded
-            if self.car_handler.wheels_grounded > 1 || linvel_forward.magnitude() < 0.5 {
+            if self.car_handler.n_wheels_grounded > 1 || linvel_forward.magnitude() < 0.5 {
                 car_forward
             } else {
                 linvel_forward
@@ -158,8 +149,12 @@ impl GameSimulation {
     }
 
     pub fn get_debug_string(&self) -> String {
+        let wheels_grounded_chars = self
+            .car_handler
+            .wheels_grounded
+            .map(|grounded| if grounded { "X" } else { " " });
         format!(
-            "throttle input: {:?}\nsteer input: {:?}\nthrottle: {:.2}\nsteer: {:.2}\nspeed: {:.2}\n",
+            "throttle input: {:?}\nsteer input: {:?}\nthrottle: {:.2}\nsteer: {:.2}\nspeed: {:.2}\nwheels: {}{}\n        {}{}\n",
             self.car_handler.drive_input,
             self.car_handler.turn_input,
             self.car_handler.throttle,
@@ -167,6 +162,10 @@ impl GameSimulation {
             self.physics_handler.rigid_bodies[self.car_handler.rb_handle]
                 .linvel()
                 .magnitude(),
+            wheels_grounded_chars[0],
+            wheels_grounded_chars[1],
+            wheels_grounded_chars[2],
+            wheels_grounded_chars[3],
         )
     }
 }

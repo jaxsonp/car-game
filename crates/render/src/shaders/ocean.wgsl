@@ -55,9 +55,9 @@ const shallow_color: vec3<f32> = vec3(0.026240, 0.577581, 0.577581);
 const deep_color: vec3<f32> = vec3(0.01, 0.4, 0.78);
 const foam_color: vec3<f32> = vec3(0.93, 0.95, 1.0);
 
-const n_steps: u32 = 5;
-const step_depth: f32 = 0.6;
-const foam_depth: f32 = 0.1;
+const n_steps: u32 = 4;
+const step_depth: f32 = 0.75;
+const foam_depth: f32 = 0.12;
 
 const color_step_factor: f32 = 1.0 / f32(n_steps);
 

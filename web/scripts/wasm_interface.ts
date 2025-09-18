@@ -37,7 +37,7 @@ window.setDebugText = (text: string): void => {
 }
 
 window.setSpeed = (speed: number): void => {
-	const gauge = document.getElementById("speed-gauge");
+	const gauge = document.getElementById("speed-gauge-container");
 	if (gauge) {
 		gauge.style.setProperty('--value', speed.toString());
 	} else {

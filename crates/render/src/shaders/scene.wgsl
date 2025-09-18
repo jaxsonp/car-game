@@ -109,6 +109,8 @@ fn vert_scene(
     return out;
 }
 
+const shadow_map_dim: f32 = 2048.0;
+const sample_size = 1.0 / shadow_map_dim;
 
 @fragment
 fn frag_scene(in: VertexOutput) -> @location(0) vec4<f32> {
@@ -120,7 +122,6 @@ fn frag_scene(in: VertexOutput) -> @location(0) vec4<f32> {
     var sun_shade_factor: f32 = 0.0;
     if (shadow_uv.x >= 0.0 && shadow_uv.x <= 1.0 && shadow_uv.y >= 0.0 && shadow_uv.y <= 1.0) {
         // take 9 samples in a 3x3 grid
-        let sample_size = 1.1 / 2048.0;
         sun_shade_factor = 9.0;
         for (var y: u32 = 0; y < 3; y = y + 1) {
             for (var x: u32 = 0; x < 3; x = x + 1) {

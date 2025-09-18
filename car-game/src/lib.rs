@@ -20,6 +20,10 @@ use winit::{
 use debug_controller::DebugCameraController;
 use framerate::FramerateCounter;
 
+// Only send UI updates to the web side every __ frames
+const DEBUG_TEXT_UPDATE_RATE: u64 = 20;
+const SPEED_GAUGE_UPDATE_RATE: u64 = 2;
+
 #[wasm_bindgen]
 pub fn run_game(canvas_id: JsString) -> Result<(), wasm_bindgen::JsValue> {
     console_error_panic_hook::set_once();
@@ -58,17 +62,14 @@ pub struct App {
 
 impl App {
     pub fn new(event_loop: &EventLoop<RenderState>, canvas_id: String) -> Self {
-        let proxy = Some(event_loop.create_proxy());
-        let fps_counter = FramerateCounter::new(40);
-        let speed_averager = RingBuffer::new(30, 0.0);
         Self {
             canvas_id,
-            proxy,
+            proxy: Some(event_loop.create_proxy()),
             render_state: None,
-            sim: GameSimulation::new(),
             paused: false,
-            fps_counter,
-            speed_averager,
+            sim: GameSimulation::new(),
+            fps_counter: FramerateCounter::new(1),
+            speed_averager: RingBuffer::new(30, 0.0),
             debug_text_shown: false,
             debug_camera_activated: false,
             debug_camera_controller: DebugCameraController::new(),
@@ -145,12 +146,9 @@ impl ApplicationHandler<RenderState> for App {
 
                 // delta time in seconds
                 let dt = self.fps_counter.tick();
+                // delta time in expected frame time (60fps)
+                let adjusted_dt = dt * 60.0;
                 let render_snapshot = if !self.paused {
-                    // delta time in expected frame time (60fps)
-                    let adjusted_dt = dt * 60.0;
-
-                    let snapshot = self.sim.step(adjusted_dt, !self.debug_camera_activated);
-
                     if self.debug_camera_activated {
                         self.debug_camera_controller
                             .update_camera(adjusted_dt, &mut render_state.scene.camera);
@@ -159,7 +157,7 @@ impl ApplicationHandler<RenderState> for App {
                             .update_camera(adjusted_dt, &mut render_state.scene.camera);
                     }
 
-                    if self.debug_text_shown {
+                    if self.sim.t % DEBUG_TEXT_UPDATE_RATE == 0 && self.debug_text_shown {
                         web_interface::set_debug_text(
                             format!(
                                 "fps: {:.2}\nview: {}\n\n{}\n{}",
@@ -176,8 +174,12 @@ impl ApplicationHandler<RenderState> for App {
                         );
                     }
 
-                    self.speed_averager.push(snapshot.car_speed / 35.0);
-                    web_interface::set_speed(self.speed_averager.mean);
+                    let snapshot = self.sim.step(dt, !self.debug_camera_activated);
+
+                    self.speed_averager.push(snapshot.car_speed);
+                    if self.sim.t % SPEED_GAUGE_UPDATE_RATE == 0 {
+                        web_interface::set_speed(self.speed_averager.mean / 38.0);
+                    }
 
                     Some(snapshot)
                 } else {

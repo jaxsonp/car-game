@@ -207,28 +207,7 @@ impl RenderState {
 
             self.scene.render(&mut render_pass);
         }
-        self.queue.submit(std::iter::once(encoder.finish()));
-        let mut encoder = self
-            .device
-            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                label: Some("Render Encoder"),
-            });
 
-        /*encoder.copy_texture_to_texture(
-            TexelCopyTextureInfo {
-                texture: &self.depth_texture.texture,
-                mip_level: 0,
-                origin: wgpu::Origin3d::ZERO,
-                aspect: wgpu::TextureAspect::All,
-            },
-            TexelCopyTextureInfo {
-                texture: &self.scene.ocean.,
-                mip_level: 0,
-                origin: wgpu::Origin3d::ZERO,
-                aspect: wgpu::TextureAspect::All,
-            },
-            self.size,
-        );*/
         {
             // ocean render pass
             let mut render_pass: wgpu::RenderPass =
