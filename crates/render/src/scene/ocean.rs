@@ -2,20 +2,20 @@ use car_game_utils::RenderSnapshot;
 use wgpu::{
     AddressMode, BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout,
     BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingResource, BindingType, Buffer,
-    BufferBindingType, BufferDescriptor, BufferUsages, PipelineCompilationOptions,
+    BufferBindingType, BufferDescriptor, BufferUsages, Extent3d, PipelineCompilationOptions,
     PipelineLayoutDescriptor, Queue, RenderPass, RenderPipeline, RenderPipelineDescriptor, Sampler,
     ShaderStages, SurfaceConfiguration, VertexState,
     util::{BufferInitDescriptor, DeviceExt},
 };
 
-use crate::{DepthTexture, uniforms::FloatUniform};
+use crate::{DepthTexture, uniforms::Vector3Uniform};
 
 pub struct Ocean {
     bind_group: BindGroup,
     bind_group_layout: BindGroupLayout,
     render_pipeline: RenderPipeline,
     index_buffer: Buffer,
-    water_level_buffer: Buffer,
+    water_level_and_size_buffer: Buffer,
     depth_texture_sampler: Sampler,
 }
 impl Ocean {
@@ -25,10 +25,10 @@ impl Ocean {
         scene_bind_group_layout: &BindGroupLayout,
         depth_texture: &DepthTexture,
     ) -> Self {
-        let water_level_buffer = device.create_buffer(&BufferDescriptor {
+        let water_level_and_size_buffer = device.create_buffer(&BufferDescriptor {
             label: Some("ocean rendering water level buffer"),
             usage: BufferUsages::UNIFORM.union(BufferUsages::COPY_DST),
-            size: size_of::<FloatUniform>() as u64,
+            size: size_of::<Vector3Uniform>() as u64,
             mapped_at_creation: false,
         });
 
@@ -46,7 +46,7 @@ impl Ocean {
             entries: &[
                 BindGroupLayoutEntry {
                     binding: 0,
-                    visibility: ShaderStages::VERTEX,
+                    visibility: ShaderStages::VERTEX | ShaderStages::FRAGMENT,
                     ty: BindingType::Buffer {
                         ty: BufferBindingType::Uniform,
                         has_dynamic_offset: false,
@@ -90,7 +90,7 @@ impl Ocean {
             entries: &[
                 BindGroupEntry {
                     binding: 0,
-                    resource: water_level_buffer.as_entire_binding(),
+                    resource: water_level_and_size_buffer.as_entire_binding(),
                 },
                 BindGroupEntry {
                     binding: 1,
@@ -157,7 +157,7 @@ impl Ocean {
             bind_group,
             bind_group_layout,
             render_pipeline,
-            water_level_buffer,
+            water_level_and_size_buffer,
             index_buffer,
             depth_texture_sampler,
         }
@@ -170,7 +170,7 @@ impl Ocean {
             entries: &[
                 BindGroupEntry {
                     binding: 0,
-                    resource: self.water_level_buffer.as_entire_binding(),
+                    resource: self.water_level_and_size_buffer.as_entire_binding(),
                 },
                 BindGroupEntry {
                     binding: 1,
@@ -184,11 +184,18 @@ impl Ocean {
         });
     }
 
-    pub fn prepare(&mut self, queue: &Queue, render_snapshot: &RenderSnapshot) {
+    pub fn prepare(&mut self, queue: &Queue, render_snapshot: &RenderSnapshot, size: Extent3d) {
         queue.write_buffer(
-            &self.water_level_buffer,
+            &self.water_level_and_size_buffer,
             0,
-            bytemuck::cast_slice(&FloatUniform::from(render_snapshot.water_level).get_slice()),
+            bytemuck::cast_slice(
+                &Vector3Uniform::from([
+                    render_snapshot.water_level,
+                    size.width as f32,
+                    size.height as f32,
+                ])
+                .get_slice(),
+            ),
         );
     }
 

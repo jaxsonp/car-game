@@ -7,7 +7,7 @@
 //   3: shadow map texture view
 //   4: shadow map sampler
 // 1: Ocean specific stuff
-//   0: water level
+//   0: water level + screen size
 //   1: depth texture view
 //   2: depth texture sampler
 
@@ -19,7 +19,7 @@ struct VertexOutput {
 var<uniform> camera_matrix: mat4x4<f32>;
 
 @group(1) @binding(0)
-var<uniform> water_level: vec4<f32>;
+var<uniform> water_level_and_size: vec4<f32>;
 
 @group(1) @binding(1)
 var depth_tex: texture_depth_2d;
@@ -35,11 +35,12 @@ fn vert_main(
 	@builtin(vertex_index) index: u32
 ) -> VertexOutput {
 	let i = f32(index);
+	let water_level = water_level_and_size.x;
 
 	// programatically generating a plane for the ocean 
 	let x = (floor(i / 3.0) - 1.0) * SIZE;
 	let z = (i - (floor(i / 3.0) * 3.0) - 1.0) * SIZE;
-	let world_pos = vec4<f32>(x, water_level.x, z, 1.0);
+	let world_pos = vec4<f32>(x, water_level, z, 1.0);
 
 	var out: VertexOutput;
 	out.clip_pos = camera_matrix * world_pos;
@@ -65,9 +66,10 @@ const color_step_factor: f32 = 1.0 / f32(n_steps);
 fn frag_main(
 	in: VertexOutput,
 ) -> @location(0) vec4<f32> {
+	let w = water_level_and_size.y;
+	let h = water_level_and_size.z;
 
-	// TODO use true screen size
-	let screen_uv: vec2<f32> = in.clip_pos.xy / 2048.0;
+	let screen_uv = vec2<f32>(in.clip_pos.x / w, in.clip_pos.y / h);
 
 	// emulate depth stencil
 	if (textureSampleCompareLevel(depth_tex, depth_tex_sampler, screen_uv, in.clip_pos.z) != 0.0) {

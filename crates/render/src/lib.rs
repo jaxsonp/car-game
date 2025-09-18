@@ -138,7 +138,7 @@ impl RenderState {
         }
         let snapshot = snapshot.unwrap();
 
-        self.scene.prepare(&self.queue, &snapshot);
+        self.scene.prepare(&self.queue, &snapshot, self.size);
 
         let output = self.surface.get_current_texture()?;
         let view = output

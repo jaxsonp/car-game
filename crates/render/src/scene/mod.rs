@@ -12,7 +12,7 @@ use nalgebra::{Isometry3, Rotation3, Translation, Vector3};
 use wgpu::{
     BindGroupDescriptor, BindGroupEntry, BindGroupLayoutDescriptor, BindGroupLayoutEntry,
     BindingResource, BindingType, BlendComponent, BlendFactor, BlendOperation, BufferBindingType,
-    BufferDescriptor, BufferUsages, Queue, RenderPipeline, ShaderStages,
+    BufferDescriptor, BufferUsages, Extent3d, Queue, RenderPipeline, ShaderStages,
     util::{BufferInitDescriptor, DeviceExt},
 };
 
@@ -389,7 +389,7 @@ impl Scene {
         }
     }
 
-    pub fn prepare(&mut self, queue: &Queue, snapshot: &RenderSnapshot) {
+    pub fn prepare(&mut self, queue: &Queue, snapshot: &RenderSnapshot, size: Extent3d) {
         queue.write_buffer(
             &self.camera_buffer,
             0,
@@ -408,7 +408,7 @@ impl Scene {
             skidline.prepare(queue, snapshot);
         }
 
-        self.ocean.prepare(queue, snapshot);
+        self.ocean.prepare(queue, snapshot, size);
 
         self.shadow_mapper
             .prepare(queue, snapshot.car_transform.translation.vector.into());
