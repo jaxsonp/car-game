@@ -25,10 +25,19 @@
 					</div>
 				</div>
 				<div id="speed-gauge-container">
-					<!-- split into 2 cus can, it would take too long to explain why -->
-					<div id="speed-gauge-l"></div>
-					<div id="speed-gauge-r"></div>
-					<div id="speed-gauge-needle"></div>
+					<svg id="speed-gauge" viewBox="-10 -10 120 120">
+						<path 
+							class="track"
+							d="M 14.6447 85.3553 A 50 50 0 1 1 85.3553 85.3553" 
+						/>
+						<path 
+							class="fill"
+							d="M 14.6447 85.3553 A 50 50 0 1 1 85.3553 85.3553" 
+						/>
+					</svg>
+					<svg id="speed-gauge-needle" viewBox="-10 -10 120 120">
+						<line x1="14.6447" y1="85.3553" x2="50" y2="50"/>
+					</svg>
 				</div>
 				<pre id="debug-text"></pre>
 			</div>

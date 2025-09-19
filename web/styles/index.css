@@ -65,82 +65,48 @@ main > * {
 	row-gap: 1rem;
 }
 
-#speed-bar-container {
-	position: absolute;
-	right: 0;
-	bottom: 0;
-	width: 1rem;
-	height: 50%;
-}
-
 #speed-gauge-container {
 	position: absolute;
-	right: 2rem;
-	bottom: 2rem;
-	height: 25%;
+	right: 1rem;
+	bottom: 1rem;
+	width: 200px;
 	aspect-ratio: 1;
-	transform: rotateY(20deg) rotateX(-20deg);
 
-	--value: 0;
-	--thickness: 0.5rem;
-
-	display: grid;
-	grid-auto-columns: 2;
-	grid-auto-rows: 2;
+	/*transform: rotateY(20deg) rotateX(-10deg);*/
 }
 
-#speed-gauge-l {
-	grid-area: 1 / 1 / 3 / 2;
-	width: 100%;
-	height: 100%;
+#speed-gauge {
+	position: absolute;
+	inset: 0;
 
-	transform-origin: center right;
-	transform: rotate(45deg);
-	overflow: hidden;
-}
-#speed-gauge-r {
-	grid-area: 1 / 2 / 2 / 3;
-	width: 100%;
-	height: 100%;
-
-	transform-origin: bottom left;
-	transform: rotate(45deg);
-	overflow: hidden;
+	fill: none;
+	stroke-linecap: round;
 }
 
-#speed-gauge-r::before, #speed-gauge-l::before {
-	content: '';
-	display: block;
-
-	width: 100%;
-	height: 100%;
-
-	background: whitesmoke;
-	will-change: transform;
+#speed-gauge .track {
+	stroke: slategray;
+	stroke-width: 2px;
 }
-#speed-gauge-l::before {
-	mask: radial-gradient(farthest-side at center right, transparent calc(100% - var(--thickness)), black calc(100% - var(--thickness) + 0.3rem) 100%, transparent 100%);
-	transform-origin: center right;
-	transform: rotateZ(calc(-180deg + min(var(--value), 0.66667) * 270deg));
-}
-#speed-gauge-r::before {
-	mask: radial-gradient(farthest-side at bottom left, transparent calc(100% - var(--thickness)), black calc(100% - var(--thickness) + 0.3rem) 100%, transparent 100%);
-	transform-origin: bottom left;
-	transform: rotateZ(calc(-90deg + max(min(var(--value), 1) - 0.66667, 0) * 270deg));
+
+#speed-gauge .fill {
+	stroke: whitesmoke;
+	stroke-width: 0.25rem;
+	stroke-dasharray: calc(var(--value) * 235.62px) 236px;
+	
+	will-change: contents;
 }
 
 #speed-gauge-needle {
-	grid-area: 1 / 1 / 3 / 3;
-	width: 100%;
-	height: 100%;
+	position: absolute;
+	inset: 0;
 
-	background-color: whitesmoke;
-	clip-path: polygon(50% 0%, 51% 50%, 49% 50%);
+	stroke: whitesmoke;
+	stroke-width: 2px;
+	stroke-linecap: round;
 
 	will-change: transform;
-	transform: rotateZ(calc(min(var(--value), 1) * 270deg - 135deg));
+	transform: rotateZ(calc(var(--value) * 270deg));
 }
-
 
 #debug-text {
 	position: absolute;
@@ -152,4 +118,6 @@ main > * {
 	font-size: small;
 	font-family: monospace;
 	background-color: rgba(255, 255, 255, 0.2);
+
+	will-change: contents;
 }
