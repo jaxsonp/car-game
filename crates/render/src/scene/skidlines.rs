@@ -34,10 +34,11 @@ impl SkidLine {
     }
 
     pub fn prepare(&mut self, queue: &wgpu::Queue, snapshot: &RenderSnapshot) {
-        if let Some(contact_point) = snapshot.skid_contact_points[self.wheel_index] {
-            let right_dir: Vector3<f32> = snapshot.car_transform.rotation * Vector3::x();
-            let up_dir: Vector3<f32> = snapshot.car_transform.rotation * Vector3::y();
-            let skid_center_pos = contact_point + up_dir.scale(SKID_OFFSET);
+        if let Some(contact) = snapshot.skid_contacts[self.wheel_index] {
+            let up_dir: Vector3<f32> = contact.normal;
+            let right_dir: Vector3<f32> =
+                (snapshot.car_transform.rotation * Vector3::z()).cross(&up_dir);
+            let skid_center_pos = contact.pos + up_dir.scale(SKID_OFFSET);
 
             let right_vert = SkidLineVert::from(skid_center_pos + right_dir.scale(SKID_SIZE_HALF));
             let left_vert = SkidLineVert::from(skid_center_pos + right_dir.scale(-SKID_SIZE_HALF));

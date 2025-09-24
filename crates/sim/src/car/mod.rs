@@ -1,6 +1,7 @@
 mod controller;
 
 use car_game_assets::{GameObject, objects::Car};
+use car_game_utils::SkidContact;
 use nalgebra::{Isometry3, Point3, Rotation3, UnitQuaternion, Vector2, Vector3};
 use rapier3d::prelude::*;
 
@@ -8,9 +9,9 @@ use crate::physics::PhysicsHandler;
 
 pub use controller::CarController;
 
-const MASS: f32 = 2400.0;
+const MASS: f32 = 3000.0;
 
-const ACCELERATION: f32 = 120.0;
+const ACCELERATION: f32 = 110.0;
 
 const SLOW_FAST_THRESH: f32 = 22.0;
 
@@ -18,38 +19,39 @@ const TURN_RADIUS_SLOW: f32 = 17f32.to_radians();
 const TURN_RADIUS_FAST: f32 = 11f32.to_radians();
 
 const TURN_RESPONSIVENESS_SLOW: f32 = 2.5f32.to_radians();
-const TURN_RESPONSIVENESS_FAST: f32 = 1.2f32.to_radians();
+const TURN_RESPONSIVENESS_FAST: f32 = 1.4f32.to_radians();
 
 const THROTTLE_RESPONSIVENESS: f32 = 0.1;
 
 /// max extension of the suspension
-const SUSPENSION_MAX: f32 = 0.3;
-const SUSPENSION_STIFFNESS: f32 = 1800.0;
-const SUSPENSION_DAMPER: f32 = 50.0;
+const SUSPENSION_MAX: f32 = 0.28;
+const SUSPENSION_STIFFNESS: f32 = 2250.0;
+const SUSPENSION_DAMPER: f32 = 54.0;
 
 fn suspension_compression_curve(val: f32) -> f32 {
     // nonlinear spring force
     val.powf(2.5)
 }
 
-const DRAG_COEFFICIENT: f32 = 0.004;
-const DOWNFORCE_COEFFICIENT: f32 = 17.0;
+const DRAG_COEFFICIENT: f32 = 0.0039;
+const DOWNFORCE_COEFFICIENT: f32 = 19.0;
 
-const MAX_FRICTION: f32 = 180.0;
+const MAX_FRICTION: f32 = 240.0;
+//const MAX_FRICTION_PER_SPEED: f32 = 180.0;
 
 const WHEEL_DIAMETER: f32 = 0.636653;
 const WHEEL_RADIUS: f32 = WHEEL_DIAMETER / 2.0;
+const WHEEL_THICKNESS: f32 = 0.292154;
 /// Tire grip coefficient
-const WHEEL_GRIP: f32 = 800.0;
+const WHEEL_GRIP: f32 = 1100.0;
 
 pub struct CarHandler {
     pub rb_handle: RigidBodyHandle,
     pub collider_handle: ColliderHandle,
-    pub(super) throttle: f32,
-    pub(super) turn_angle: f32,
+    pub throttle: f32,
+    pub turn_angle: f32,
 
-    wheels_slipping: [bool; 4],
-    pub wheels_grounded: [bool; 4],
+    pub wheels: [WheelInfo; 4],
     pub n_wheels_grounded: u32,
     pub drive_input: DriveInputState,
     pub turn_input: TurnInputState,
@@ -72,8 +74,7 @@ impl CarHandler {
             collider_handle: collider_handle.unwrap(),
             turn_angle: 0.0,
             throttle: 0.0,
-            wheels_slipping: [false; 4],
-            wheels_grounded: [false; 4],
+            wheels: [0, 1, 2, 3].map(|i| WheelInfo::new(i)),
             n_wheels_grounded: 0,
             drive_input: DriveInputState::Coasting,
             turn_input: TurnInputState::None,
@@ -86,39 +87,12 @@ impl CarHandler {
         physics: &mut PhysicsHandler,
         controller: Option<&CarController>,
         water_level: f32,
-    ) -> ([Isometry3<f32>; 4], [Option<Point3<f32>>; 4]) {
-        use car_game_assets::objects::Car;
-
+    ) {
         let adjusted_dt = dt * 60.0;
 
         let car_transform = *physics.rigid_bodies[self.rb_handle].position();
         let car_up_dir: Vector3<f32> = (car_transform.rotation * Vector3::y()).normalize();
         let car_forward_dir: Vector3<f32> = (car_transform.rotation * Vector3::z()).normalize();
-
-        // cast rays to see if tires are touching the ground
-        self.n_wheels_grounded = 0;
-        let hits = {
-            let query_pipeline = physics.create_query_pipeline(
-                QueryFilter::new()
-                    .exclude_rigid_body(self.rb_handle)
-                    .groups(physics.colliders[self.collider_handle].collision_groups()),
-            );
-            Car::WHEEL_OFFSETS.map(|wheel_offset| {
-                let ray_origin = car_transform * Point3::from(wheel_offset);
-                let ray = Ray::new(ray_origin, -car_up_dir);
-                if let Some((_collider, hit_dist)) = query_pipeline.cast_ray_and_get_normal(
-                    &ray,
-                    SUSPENSION_MAX + WHEEL_RADIUS,
-                    false,
-                ) {
-                    self.n_wheels_grounded += 1;
-                    (ray, Some(hit_dist))
-                } else {
-                    (ray, None)
-                }
-            })
-        };
-        self.wheels_grounded = hits.map(|(_, hit)| hit.is_some());
 
         let car_rb = &mut physics.rigid_bodies[self.rb_handle];
         let car_linvel = *car_rb.linvel();
@@ -182,73 +156,65 @@ impl CarHandler {
         );
 
         // calculate and apply forces from wheels
-        let mut wheel_positions: [Point3<f32>; 4] = [Point3::origin(); 4];
-        let mut skid_contact_points: [Option<Point3<f32>>; 4] = [None; 4];
-        for wheel_i in 0..4 {
-            let (ray, maybe_hit) = hits[wheel_i];
-            if let Some(intersection) = maybe_hit {
+        for wheel in self.wheels.iter_mut() {
+            if let Some((toi, _contact_normal)) = wheel.contact {
                 // tire is on the ground
 
-                let hit_dist = intersection.time_of_impact;
-                let contact_point = ray.point_at(hit_dist);
+                let ray = wheel.ray.unwrap();
+                let contact_pos = ray.point_at(toi);
 
                 // suspension forces
-                let compression =
-                    ((SUSPENSION_MAX + WHEEL_RADIUS) - hit_dist) / (SUSPENSION_MAX + WHEEL_RADIUS);
-                let spring_impulse =
-                    suspension_compression_curve(compression) * SUSPENSION_STIFFNESS;
+                let spring_impulse = suspension_compression_curve(wheel.suspension_compression)
+                    * SUSPENSION_STIFFNESS;
                 let spring_velocity = car_rb.velocity_at_point(&ray.origin).dot(&ray.dir);
                 let damper_impulse = spring_velocity * SUSPENSION_DAMPER;
                 let suspension_impulse = car_up_dir * (spring_impulse + damper_impulse);
                 car_rb.apply_impulse_at_point(suspension_impulse * adjusted_dt, ray.origin, false);
 
                 // calculating tire orientation
-                let wheel_forward_dir = if wheel_i < 2 && self.turn_angle.abs() > 0.01 {
+                let wheel_forward_dir = if wheel.i < 2 && self.turn_angle.abs() > 0.01 {
                     turned_wheel_forward_dir
                 } else {
                     car_forward_dir
                 };
                 let wheel_right_dir: Vector3<f32> = wheel_forward_dir.cross(&car_up_dir);
-                let tire_velocity: Vector3<f32> = car_rb.velocity_at_point(&contact_point);
+                let tire_velocity: Vector3<f32> = car_rb.velocity_at_point(&contact_pos);
 
                 // friction forces
                 let lat_force = tire_velocity.normalize().dot(&wheel_right_dir) * -WHEEL_GRIP;
-                let long_force = if wheel_i >= 2 {
+                let long_force = if wheel.i < 2 {
+                    0.0
+                } else {
                     // rwd
                     self.throttle
-                } else {
-                    0.0
                 };
                 let mut wheel_forces = Vector2::new(lat_force, long_force);
                 let wheel_forces_mag_squared = wheel_forces.magnitude_squared();
 
-                self.wheels_slipping[wheel_i] = wheel_forces_mag_squared > MAX_FRICTION.powi(2);
-                if self.wheels_slipping[wheel_i] {
-                    // wheel is slipping clamping forces
+                wheel.skidding = false;
+                if wheel_forces_mag_squared > MAX_FRICTION.powi(2) {
+                    // wheel is slipping, clamping forces
                     wheel_forces = wheel_forces.normalize() * MAX_FRICTION * 0.95;
+
                     // boost acceleration when drifting
-                    wheel_forces.y *= 1.1;
+                    //wheel_forces.y *= 1.1;
 
                     if car_linvel.magnitude() > 1.5 {
-                        skid_contact_points[wheel_i] = Some(contact_point);
+                        // only skid above a certain speed
+                        wheel.skidding = true;
                     }
                 }
                 car_rb.apply_impulse_at_point(
                     wheel_right_dir * wheel_forces.x * adjusted_dt,
-                    contact_point,
+                    contact_pos,
                     false,
                 );
                 car_rb.apply_impulse_at_point(
                     wheel_forward_dir * wheel_forces.y * adjusted_dt,
-                    contact_point,
+                    contact_pos,
                     false,
                 );
             }
-
-            wheel_positions[wheel_i] =
-                ray.point_at(maybe_hit.map_or(SUSPENSION_MAX, |intersection| {
-                    intersection.time_of_impact - WHEEL_RADIUS
-                }));
         }
 
         // drag force
@@ -274,32 +240,138 @@ impl CarHandler {
             car_rb.set_linear_damping(0.0);
             car_rb.set_angular_damping(0.0);
         }
+    }
 
-        let mut wheel_transforms =
-            wheel_positions.map(|pos| Isometry3::from_parts(pos.into(), *car_rb.rotation()));
-
-        // visually turning front wheels
-        wheel_transforms[0].append_rotation_wrt_center_mut(&UnitQuaternion::from_axis_angle(
-            &Vector3::y_axis(),
-            self.turn_angle,
-        ));
-        wheel_transforms[1].append_rotation_wrt_center_mut(&UnitQuaternion::from_axis_angle(
-            &Vector3::y_axis(),
-            self.turn_angle,
-        ));
-
-        (wheel_transforms, skid_contact_points)
+    /// Calculate wheel data after stepping world physics for a good reason
+    pub fn calculate_wheel_data(&mut self, physics: &mut PhysicsHandler) {
+        let car_transform = *physics.rigid_bodies[self.rb_handle].position();
+        // cast rays to see if tires are touching the ground
+        let query_pipeline = physics.create_query_pipeline(
+            QueryFilter::new()
+                .exclude_rigid_body(self.rb_handle)
+                .groups(physics.colliders[self.collider_handle].collision_groups()),
+        );
+        self.n_wheels_grounded = 0;
+        for i in 0..4 {
+            self.wheels[i].calculate_contact(&query_pipeline, &car_transform);
+            if self.wheels[i].contact.is_some() {
+                self.n_wheels_grounded += 1;
+            }
+        }
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Clone, Copy)]
+pub struct WheelInfo {
+    i: u32,
+    /// offset of wheel origin FROM CAR
+    offset: Vector3<f32>,
+    /// offset of ray origin FROM WHEEL ORIGIN
+    ray_origin_offset: Vector3<f32>,
+    /// ray used for last contact calculation
+    ray: Option<Ray>,
+    /// Contact TOI and normal
+    pub contact: Option<(f32, Vector3<f32>)>,
+    /// 0 is totally uncompressed, 1 is bottomed out
+    pub suspension_compression: f32,
+    pub skidding: bool,
+}
+impl WheelInfo {
+    fn new(i: usize) -> Self {
+        let offset = Vector3::from(Car::WHEEL_OFFSETS[i]);
+        let ray_origin_offset = Vector3::new(
+            if i % 2 == 0 {
+                WHEEL_THICKNESS
+            } else {
+                -WHEEL_THICKNESS
+            },
+            0.0,
+            0.0,
+        );
+        WheelInfo {
+            i: i as u32,
+            offset,
+            ray_origin_offset,
+            ray: None,
+            contact: None,
+            suspension_compression: 0.0,
+            skidding: false,
+        }
+    }
+
+    /// Returns the mesh position for this wheel
+    fn calculate_contact(
+        &mut self,
+        query_pipeline: &QueryPipeline,
+        car_transform: &Isometry3<f32>,
+    ) -> Point3<f32> {
+        let car_up_dir: Vector3<f32> = (car_transform.rotation * Vector3::y()).normalize();
+        let ray_origin: Point3<f32> =
+            car_transform * Point3::from(self.offset + self.ray_origin_offset);
+        let ray = Ray::new(ray_origin, -car_up_dir);
+        self.ray = Some(ray);
+        if let Some((_collider, intersection)) =
+            query_pipeline.cast_ray_and_get_normal(&ray, SUSPENSION_MAX + WHEEL_RADIUS, false)
+        {
+            self.contact = Some((intersection.time_of_impact, intersection.normal));
+            self.suspension_compression = ((SUSPENSION_MAX + WHEEL_RADIUS)
+                - intersection.time_of_impact)
+                / (SUSPENSION_MAX + WHEEL_RADIUS);
+
+            car_transform * ray.point_at(intersection.time_of_impact - WHEEL_RADIUS)
+        } else {
+            self.contact = None;
+            self.suspension_compression = 0.0;
+
+            car_transform * ray.point_at(SUSPENSION_MAX)
+        }
+    }
+
+    pub fn get_mesh_transform(
+        &self,
+        car_transform: &Isometry3<f32>,
+        turn_angle: f32,
+    ) -> Isometry3<f32> {
+        Isometry3::from_parts(
+            (self
+                .ray
+                .unwrap()
+                .point_at(
+                    self.contact
+                        .map_or(SUSPENSION_MAX, |(toi, _)| toi - WHEEL_RADIUS),
+                )
+                .coords
+                - (car_transform * self.ray_origin_offset))
+                .into(),
+            if self.i < 2 {
+                car_transform.rotation
+                    * UnitQuaternion::from_axis_angle(&Vector3::y_axis(), turn_angle)
+            } else {
+                car_transform.rotation
+            },
+        )
+    }
+
+    pub fn get_skid_contact(&self) -> Option<SkidContact> {
+        if self.skidding {
+            self.contact.map(|(toi, normal)| SkidContact {
+                pos: self.ray.unwrap().point_at(toi),
+                normal,
+            })
+        } else {
+            None
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum TurnInputState {
     Left,
     None,
     Right,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum DriveInputState {
     Coasting,
     Accelerating,

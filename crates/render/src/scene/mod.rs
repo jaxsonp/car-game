@@ -396,9 +396,12 @@ impl Scene {
             bytemuck::cast_slice(&[get_view_projection_matrix(&self.camera)]),
         );
 
-        self.wheels.iter_mut().enumerate().for_each(|(i, w)| {
-            w.set_transform(snapshot.wheel_transforms[i]);
-        });
+        self.wheels
+            .iter_mut()
+            .zip(snapshot.wheel_transforms.into_iter())
+            .for_each(|(model, transform)| {
+                model.set_transform(transform);
+            });
         self.car.set_transform(snapshot.car_transform);
 
         self.car.prepare(queue);

@@ -54,23 +54,3 @@ impl From<Isometry3<f32>> for Matrix4Uniform {
         Matrix4Uniform::from(m)
     }
 }
-
-#[repr(C)]
-#[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
-pub struct FloatUniform {
-    val: f32,
-    _pad: [f32; 3],
-}
-impl FloatUniform {
-    pub fn get_slice(&self) -> [f32; 1] {
-        return [self.val];
-    }
-}
-impl From<f32> for FloatUniform {
-    fn from(val: f32) -> Self {
-        FloatUniform {
-            val,
-            _pad: [0f32; 3],
-        }
-    }
-}

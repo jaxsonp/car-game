@@ -17,7 +17,7 @@ pub struct GameSimulation {
     pub t: u64,
     pub real_t: f64,
     physics_handler: PhysicsHandler,
-    car_handler: CarHandler,
+    car: CarHandler,
     pub controller: CarController,
 
     water_level_noise: Perlin,
@@ -42,7 +42,8 @@ impl GameSimulation {
             );
         }
 
-        let car_handler = CarHandler::new(&mut physics_handler);
+        let mut car_handler = CarHandler::new(&mut physics_handler);
+        car_handler.calculate_wheel_data(&mut physics_handler);
 
         let water_level_noise = Perlin::new(216);
 
@@ -50,7 +51,7 @@ impl GameSimulation {
             t: 0,
             real_t: 0.0,
             physics_handler,
-            car_handler,
+            car: car_handler,
             controller: CarController::new(),
             water_level_noise,
         }
@@ -60,9 +61,9 @@ impl GameSimulation {
         let water_level = WATER_LEVEL_BASE
             + WATER_LEVEL_MOVEMENT * (self.water_level_noise.get([self.real_t / 7.0]) as f32 - 0.5);
 
-        self.physics_handler.step(dt);
+        // physics stuff
 
-        let (wheel_transforms, skid_contact_points) = self.car_handler.step(
+        self.car.step(
             dt,
             &mut self.physics_handler,
             if controller_activated {
@@ -72,15 +73,21 @@ impl GameSimulation {
             },
             water_level,
         );
+        self.physics_handler.step(dt);
+        self.car.calculate_wheel_data(&mut self.physics_handler);
 
-        let car_rb = &self.physics_handler.rigid_bodies[self.car_handler.rb_handle];
-
+        let car_rb = &self.physics_handler.rigid_bodies[self.car.rb_handle];
         let car_transform = *car_rb.position();
-        let car_speed = if self.car_handler.n_wheels_grounded > 0 {
+        let car_speed = if self.car.n_wheels_grounded > 0 {
             car_rb.linvel().magnitude()
         } else {
             0.0
         };
+        let wheel_transforms = self
+            .car
+            .wheels
+            .map(|wheel| wheel.get_mesh_transform(&car_transform, self.car.turn_angle));
+        let skid_contacts = self.car.wheels.map(|wheel| wheel.get_skid_contact());
 
         self.t += 1;
         self.real_t += dt as f64;
@@ -89,7 +96,7 @@ impl GameSimulation {
             car_transform,
             car_speed,
             wheel_transforms,
-            skid_contact_points,
+            skid_contacts,
             water_level,
         }
     }
@@ -102,10 +109,8 @@ impl GameSimulation {
         const CAM_EYE_DIST: f32 = 6.25;
         const CAM_TARGET_HEIGHT: f32 = 2.0;
 
-        let car_transform =
-            *self.physics_handler.rigid_bodies[self.car_handler.rb_handle].position();
-        let car_linear_vel =
-            *self.physics_handler.rigid_bodies[self.car_handler.rb_handle].linvel();
+        let car_transform = *self.physics_handler.rigid_bodies[self.car.rb_handle].position();
+        let car_linear_vel = *self.physics_handler.rigid_bodies[self.car.rb_handle].linvel();
 
         let forward_dir: Vector3<f32> = {
             let mut car_forward = car_transform.rotation.transform_vector(&Vector3::z());
@@ -114,7 +119,7 @@ impl GameSimulation {
             linvel_forward.y = 0.0;
 
             // use linear velocity as forward direction if not grounded
-            if self.car_handler.n_wheels_grounded > 1 || linvel_forward.magnitude() < 0.5 {
+            if self.car.n_wheels_grounded > 1 || linvel_forward.magnitude() < 0.5 {
                 car_forward
             } else {
                 linvel_forward
@@ -126,9 +131,7 @@ impl GameSimulation {
         // casting ray backwards
         let dist = if let Some((_, dist)) = self
             .physics_handler
-            .create_query_pipeline(
-                QueryFilter::new().exclude_rigid_body(self.car_handler.rb_handle),
-            )
+            .create_query_pipeline(QueryFilter::new().exclude_rigid_body(self.car.rb_handle))
             .cast_ray(&Ray::new(target_eye, -forward_dir), CAM_EYE_DIST, true)
         {
             dist
@@ -150,16 +153,16 @@ impl GameSimulation {
 
     pub fn get_debug_string(&self) -> String {
         let wheels_grounded_chars = self
-            .car_handler
-            .wheels_grounded
-            .map(|grounded| if grounded { "X" } else { " " });
+            .car
+            .wheels
+            .map(|wheel| if wheel.contact.is_some() { "X" } else { " " });
         format!(
             "throttle input: {:?}\nsteer input: {:?}\nthrottle: {:.2}\nsteer: {:.2}\nspeed: {:.2}\nwheels: {}{}\n        {}{}\n",
-            self.car_handler.drive_input,
-            self.car_handler.turn_input,
-            self.car_handler.throttle,
-            self.car_handler.turn_angle,
-            self.physics_handler.rigid_bodies[self.car_handler.rb_handle]
+            self.car.drive_input,
+            self.car.turn_input,
+            self.car.throttle,
+            self.car.turn_angle,
+            self.physics_handler.rigid_bodies[self.car.rb_handle]
                 .linvel()
                 .magnitude(),
             wheels_grounded_chars[0],

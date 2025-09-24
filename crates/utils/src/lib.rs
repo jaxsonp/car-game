@@ -1,12 +1,18 @@
 use nalgebra::{Isometry3, Point3, Vector3};
 
+#[derive(Clone, Copy)]
 pub struct RenderSnapshot {
     pub car_transform: Isometry3<f32>,
     pub car_speed: f32,
-    /// How far below offset each wheel is (front-driver, front-pass, rear-driver, rear-pass)
     pub wheel_transforms: [Isometry3<f32>; 4],
-    pub skid_contact_points: [Option<Point3<f32>>; 4],
+    pub skid_contacts: [Option<SkidContact>; 4],
     pub water_level: f32,
+}
+
+#[derive(Clone, Copy)]
+pub struct SkidContact {
+    pub pos: Point3<f32>,
+    pub normal: Vector3<f32>,
 }
 
 pub struct Camera {

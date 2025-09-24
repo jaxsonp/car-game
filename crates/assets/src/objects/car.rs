@@ -124,6 +124,7 @@ impl GameObject for Wheel {
 
     const debug_lines: &'static [RawDebugLine] = &debug_lines!(
         [0.0, 0.0, 0.0] => [0.0, 0.5, 0.0];
+        [0.0, 0.0, 0.0] => [-0.5, 0.0, 0.0];
     );
 
     fn get_collision_box() -> ColliderBuilder {
