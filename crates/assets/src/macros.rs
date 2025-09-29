@@ -1,7 +1,10 @@
 #[macro_export]
-macro_rules! load_obj_mesh {
+macro_rules! preloaded_file {
     ($file:literal) => {{
+        #[allow(unused_imports)]
         use crate::{RawMaterial, RawMesh, RawVertex};
+        #[allow(unused_imports)]
+        use nalgebra::{ArrayStorage, Matrix4};
         include!(std::concat!(env!("OUT_DIR"), "/", $file, ".rs"))
     }};
 }

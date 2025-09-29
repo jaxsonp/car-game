@@ -113,7 +113,7 @@ const shadow_map_dim: f32 = 2048.0;
 const sample_size = 1.0 / shadow_map_dim;
 
 @fragment
-fn frag_scene(in: VertexOutput) -> @location(0) vec4<f32> {
+fn frag_scene_shaded(in: VertexOutput) -> @location(0) vec4<f32> {
 
     let shadow_coords = in.shadow_map_pos.xyz / in.shadow_map_pos.w;
     var shadow_uv: vec2<f32> = shadow_coords.xy * vec2(0.5, -0.5) + vec2(0.5, 0.5); // map from [-1, 1] range to [0, 1] texture coordinate range
@@ -147,5 +147,9 @@ fn frag_scene(in: VertexOutput) -> @location(0) vec4<f32> {
     
     let light = 1.0 - (0.5 * max(ambient_shade_factor, sun_shade_factor));
     return vec4<f32>(diffuse_color.rgb * light, 1.0);
+}
 
+@fragment
+fn frag_scene_unshaded(in: VertexOutput) -> @location(0) vec4<f32> {
+    return vec4<f32>(diffuse_color.rgb, 1.0);
 }

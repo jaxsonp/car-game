@@ -29,10 +29,11 @@ use shadows::{SUN_DIR, ShadowMapper};
 use skidlines::{SkidLine, SkidLineVert};
 
 pub struct Scene {
-    mesh_render_pipeline: RenderPipeline,
-    skidline_render_pipeline: RenderPipeline,
+    shaded_mesh_pipeline: RenderPipeline,
+    unshaded_mesh_pipeline: RenderPipeline,
+    skidline_pipeline: RenderPipeline,
     #[cfg(debug_assertions)]
-    debug_render_pipeline: RenderPipeline,
+    debug_line_pipeline: RenderPipeline,
 
     camera_buffer: wgpu::Buffer,
     pub bind_group: wgpu::BindGroup,
@@ -40,6 +41,7 @@ pub struct Scene {
     pub shadow_mapper: ShadowMapper,
     pub camera: Camera,
     pub static_models: Vec<Model>,
+    pub unshaded_static_models: Vec<Model>,
     pub car: Model,
     pub wheels: [Model; 4],
     pub skidlines: [SkidLine; 4],
@@ -158,29 +160,66 @@ impl Scene {
             ],
         });
 
-        let mesh_render_pipeline = {
-            let mesh_render_pipeline_layout =
-                device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                    label: Some("scene mesh render pipeline layout"),
-                    bind_group_layouts: &[
-                        &scene_bind_group_layout,
-                        &model::Model::get_bind_group_layout(&device),
-                        &mesh::Mesh::get_bind_group_layout(&device),
-                    ],
-                    push_constant_ranges: &[],
-                });
+        let mesh_pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+            label: Some("scene mesh render pipeline layout"),
+            bind_group_layouts: &[
+                &scene_bind_group_layout,
+                &model::Model::get_bind_group_layout(&device),
+                &mesh::Mesh::get_bind_group_layout(&device),
+            ],
+            push_constant_ranges: &[],
+        });
+        let shaded_pipeline_desc = wgpu::RenderPipelineDescriptor {
+            label: Some("scene mesh render pipeline"),
+            layout: Some(&mesh_pipeline_layout),
+            vertex: wgpu::VertexState {
+                module: &scene_shader,
+                entry_point: Some("vert_scene"),
+                buffers: &[mesh::Vertex::BUFFER_LAYOUT, Model::INSTANCE_BUFFER_LAYOUT],
+                compilation_options: wgpu::PipelineCompilationOptions::default(),
+            },
+            fragment: Some(wgpu::FragmentState {
+                module: &scene_shader,
+                entry_point: Some("frag_scene_shaded"),
+                targets: &[Some(wgpu::ColorTargetState {
+                    format: config.format,
+                    blend: Some(wgpu::BlendState::REPLACE),
+                    write_mask: wgpu::ColorWrites::ALL,
+                })],
+                compilation_options: wgpu::PipelineCompilationOptions::default(),
+            }),
+            primitive: wgpu::PrimitiveState {
+                topology: wgpu::PrimitiveTopology::TriangleList,
+                strip_index_format: None,
+                front_face: wgpu::FrontFace::Ccw,
+                cull_mode: Some(wgpu::Face::Back),
+                polygon_mode: wgpu::PolygonMode::Fill,
+                unclipped_depth: false,
+                conservative: false,
+            },
+            depth_stencil: Some(wgpu::DepthStencilState {
+                format: wgpu::TextureFormat::Depth32Float,
+                depth_write_enabled: true,
+                depth_compare: wgpu::CompareFunction::Less,
+                stencil: wgpu::StencilState::default(),
+                bias: wgpu::DepthBiasState::default(),
+            }),
+            multisample: wgpu::MultisampleState {
+                count: 1,
+                mask: !0,
+                alpha_to_coverage_enabled: false,
+            },
+            multiview: None,
+            cache: None,
+        };
+        let shaded_mesh_pipeline = device.create_render_pipeline(&shaded_pipeline_desc.clone());
+        // unshaded pipeline is the same but with a different fragment shader
+        let unshaded_mesh_pipeline =
             device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-                label: Some("scene mesh render pipeline"),
-                layout: Some(&mesh_render_pipeline_layout),
-                vertex: wgpu::VertexState {
-                    module: &scene_shader,
-                    entry_point: Some("vert_scene"),
-                    buffers: &[mesh::Vertex::BUFFER_LAYOUT, Model::INSTANCE_BUFFER_LAYOUT],
-                    compilation_options: wgpu::PipelineCompilationOptions::default(),
-                },
+                label: Some("scene unshaded mesh render pipeline"),
                 fragment: Some(wgpu::FragmentState {
                     module: &scene_shader,
-                    entry_point: Some("frag_scene"),
+                    entry_point: Some("frag_scene_unshaded"),
                     targets: &[Some(wgpu::ColorTargetState {
                         format: config.format,
                         blend: Some(wgpu::BlendState::REPLACE),
@@ -188,38 +227,15 @@ impl Scene {
                     })],
                     compilation_options: wgpu::PipelineCompilationOptions::default(),
                 }),
-                primitive: wgpu::PrimitiveState {
-                    topology: wgpu::PrimitiveTopology::TriangleList,
-                    strip_index_format: None,
-                    front_face: wgpu::FrontFace::Ccw,
-                    cull_mode: Some(wgpu::Face::Back),
-                    polygon_mode: wgpu::PolygonMode::Fill,
-                    unclipped_depth: false,
-                    conservative: false,
-                },
-                depth_stencil: Some(wgpu::DepthStencilState {
-                    format: wgpu::TextureFormat::Depth32Float,
-                    depth_write_enabled: true,
-                    depth_compare: wgpu::CompareFunction::Less,
-                    stencil: wgpu::StencilState::default(),
-                    bias: wgpu::DepthBiasState::default(),
-                }),
-                multisample: wgpu::MultisampleState {
-                    count: 1,
-                    mask: !0,
-                    alpha_to_coverage_enabled: false,
-                },
-                multiview: None,
-                cache: None,
-            })
-        };
+                ..shaded_pipeline_desc
+            });
 
-        let skidline_render_pipeline = {
+        let skidline_pipeline = {
             let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
                 label: Some("skidline shader"),
                 source: wgpu::ShaderSource::Wgsl(include_str!("../shaders/skidline.wgsl").into()),
             });
-            let mesh_render_pipeline_layout =
+            let skidline_pipeline_layout =
                 device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                     label: Some("scene skidline render pipeline layout"),
                     bind_group_layouts: &[&scene_bind_group_layout],
@@ -227,7 +243,7 @@ impl Scene {
                 });
             device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
                 label: Some("scene mesh render pipeline"),
-                layout: Some(&mesh_render_pipeline_layout),
+                layout: Some(&skidline_pipeline_layout),
                 vertex: wgpu::VertexState {
                     module: &shader,
                     entry_point: None,
@@ -279,7 +295,7 @@ impl Scene {
         };
 
         #[cfg(debug_assertions)]
-        let debug_render_pipeline = {
+        let debug_line_pipeline = {
             let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
                 label: Some("scene debug shader"),
                 source: wgpu::ShaderSource::Wgsl(include_str!("../shaders/debuglines.wgsl").into()),
@@ -341,12 +357,10 @@ impl Scene {
         };
 
         use car_game_assets::objects;
-        let car = Model::from_object::<objects::Car>("Car", device, None);
+        let car = Model::from_object::<objects::Car>("Car", device);
         let wheels = [0, 1, 2, 3].map(|i| {
-            Model::from_object::<objects::Wheel>(
-                format!("Wheel {}", i).as_str(),
-                device,
-                Some(Isometry3::from_parts(
+            Model::from_object::<objects::Wheel>(format!("Wheel {}", i).as_str(), device)
+                .with_static_transform(Isometry3::from_parts(
                     Translation::identity(),
                     Rotation3::from_axis_angle(
                         &Vector3::z_axis(),
@@ -357,30 +371,35 @@ impl Scene {
                         },
                     )
                     .into(),
-                )),
-            )
+                ))
         });
         let static_models: Vec<Model> = vec![
-            Model::from_object::<objects::Ground>("Ground", device, None),
-            Model::from_object::<objects::Roads>("Roads", device, None),
-            Model::from_object::<objects::Buildings>("Buildings", device, None),
-            Model::from_object::<objects::Streetlights>("Streetlights", device, None),
-            Model::from_object::<objects::Trees1>("Trees1", device, None),
+            Model::from_object::<objects::Ground>("Ground", device),
+            Model::from_object::<objects::Roads>("Roads", device),
+            Model::from_object::<objects::Buildings>("Buildings", device),
+            Model::from_object::<objects::Streetlights>("Streetlights", device),
+            Model::from_object::<objects::Trees1>("Trees1", device),
+        ];
+        let unshaded_static_models: Vec<Model> = vec![
+            Model::from_object::<objects::GrassTufts1>("GrassTufts1", device),
+            Model::from_object::<objects::GrassTufts2>("GrassTufts2", device),
         ];
         let skidlines = [0, 1, 2, 3].map(|i| SkidLine::new(device, i));
 
         let ocean = Ocean::new(device, config, &scene_bind_group_layout, depth_texture);
 
         Scene {
-            mesh_render_pipeline,
-            skidline_render_pipeline,
+            shaded_mesh_pipeline,
+            unshaded_mesh_pipeline,
+            skidline_pipeline,
             #[cfg(debug_assertions)]
-            debug_render_pipeline,
+            debug_line_pipeline,
             camera_buffer,
             bind_group: scene_bind_group,
 
             shadow_mapper,
             static_models,
+            unshaded_static_models,
             car,
             wheels,
             skidlines,
@@ -404,9 +423,11 @@ impl Scene {
             });
         self.car.set_transform(snapshot.car_transform);
 
-        self.car.prepare(queue);
-        self.wheels.iter_mut().for_each(|w| w.prepare(queue));
-        self.static_models.iter_mut().for_each(|m| m.prepare(queue));
+        std::iter::once(&mut self.car)
+            .chain(self.wheels.iter_mut())
+            .chain(self.static_models.iter_mut())
+            .chain(self.unshaded_static_models.iter_mut())
+            .for_each(|m| m.prepare(queue));
         for skidline in self.skidlines.iter_mut() {
             skidline.prepare(queue, snapshot);
         }
@@ -420,16 +441,22 @@ impl Scene {
     pub fn render<'a>(&'a self, render_pass: &mut wgpu::RenderPass<'a>) {
         render_pass.set_bind_group(0, &self.bind_group, &[]);
 
-        // mesh rendering
-        render_pass.set_pipeline(&self.mesh_render_pipeline);
+        // shaded meshes
+        render_pass.set_pipeline(&self.shaded_mesh_pipeline);
         self.car.render(render_pass);
         self.wheels.iter().for_each(|w| w.render(render_pass));
         self.static_models
             .iter()
             .for_each(|m| m.render(render_pass));
 
+        // unshaded meshes
+        render_pass.set_pipeline(&self.unshaded_mesh_pipeline);
+        self.unshaded_static_models
+            .iter()
+            .for_each(|m| m.render(render_pass));
+
         // skidline rendering
-        render_pass.set_pipeline(&self.skidline_render_pipeline);
+        render_pass.set_pipeline(&self.skidline_pipeline);
         for skidline in self.skidlines.iter() {
             skidline.render(render_pass);
         }
@@ -437,7 +464,7 @@ impl Scene {
         // debug line rendering
         #[cfg(debug_assertions)]
         {
-            render_pass.set_pipeline(&self.debug_render_pipeline);
+            render_pass.set_pipeline(&self.debug_line_pipeline);
             self.car.render_debug_lines(render_pass);
             self.wheels
                 .iter()
@@ -448,6 +475,7 @@ impl Scene {
         }
     }
 
+    /// rendering onto the shadow map
     pub fn shadow_map_render<'a>(&'a self, render_pass: &mut wgpu::RenderPass<'a>) {
         self.car.shadow_map_render(render_pass);
         self.wheels

@@ -72,7 +72,7 @@ impl Default for OBJMaterial {
 ///
 /// This parser ignores named objects and groups, instead treating the whole file as a model and grouping faces into
 /// meshes by material
-pub fn parse_obj_file(input_filepath: PathBuf) -> io::Result<Vec<(OBJMaterial, OBJMesh)>> {
+pub fn parse_obj_mesh(input_filepath: PathBuf) -> io::Result<Vec<(OBJMaterial, OBJMesh)>> {
     let input_file = File::open(input_filepath.clone())?;
     let input = BufReader::new(input_file);
 

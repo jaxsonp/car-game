@@ -30,11 +30,7 @@ pub struct Model {
     normal_transform_buffer: Buffer,
 }
 impl Model {
-    pub fn from_object<GO: GameObject>(
-        name: &str,
-        device: &wgpu::Device,
-        static_transform: Option<Isometry3<f32>>,
-    ) -> Model {
+    pub fn from_object<GO: GameObject>(name: &str, device: &wgpu::Device) -> Model {
         let meshes: Vec<Mesh> = GO::render_meshes
             .into_iter()
             .map(|raw| Mesh::from_raw(*raw, device))
@@ -59,9 +55,9 @@ impl Model {
             mapped_at_creation: false,
         });
 
-        let instance_data: Vec<Matrix4Uniform> = GO::get_instances()
+        let instance_data: Vec<Matrix4Uniform> = GO::instances
             .into_iter()
-            .map(|transform| Matrix4Uniform::from(transform))
+            .map(|matrix| Matrix4Uniform::from(*matrix))
             .collect();
         let n_instances = instance_data.len() as u32;
         let instance_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -87,7 +83,7 @@ impl Model {
         });
 
         log::debug!(
-            "Loaded meshes for model \"{}\" ({} verts, {} faces)",
+            "Created model \"{}\"\n\t{} verts\n\t{} faces\n\t{} meshes\n\t{} instances",
             name,
             GO::render_meshes
                 .iter()
@@ -97,7 +93,9 @@ impl Model {
                 .iter()
                 .map(|m| m.indices.len())
                 .sum::<usize>()
-                / 3
+                / 3,
+            GO::render_meshes.len(),
+            n_instances
         );
         Model {
             _name: name.into(),
@@ -107,11 +105,16 @@ impl Model {
             bind_group,
             instance_buffer,
             n_instances,
-            static_transform,
+            static_transform: None,
             new_transform: Some(Isometry3::identity()),
             model_transform_buffer,
             normal_transform_buffer,
         }
+    }
+
+    pub fn with_static_transform(mut self, transform: Isometry3<f32>) -> Self {
+        self.static_transform = Some(transform);
+        self
     }
 
     const BIND_GROUP_LAYOUT: OnceCell<BindGroupLayout> = OnceCell::new();

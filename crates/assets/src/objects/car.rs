@@ -57,7 +57,7 @@ impl Car {
     );
 }
 impl GameObject for Car {
-    const render_meshes: &'static [RawMesh] = load_obj_mesh!("car.obj");
+    const render_meshes: &'static [RawMesh] = preloaded_file!("car.obj");
 
     const debug_lines: &'static [RawDebugLine] = &debug_lines! {
         // top of toppart
@@ -120,7 +120,7 @@ impl GameObject for Car {
 
 pub struct Wheel {}
 impl GameObject for Wheel {
-    const render_meshes: &'static [RawMesh] = load_obj_mesh!("wheel.obj");
+    const render_meshes: &'static [RawMesh] = preloaded_file!("wheel.obj");
 
     const debug_lines: &'static [RawDebugLine] = &debug_lines!(
         [0.0, 0.0, 0.0] => [0.0, 0.5, 0.0];

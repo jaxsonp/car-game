@@ -4,7 +4,9 @@ use std::{
     path::PathBuf,
 };
 
+use car_game_csv::CSVInstance;
 use car_game_obj::{OBJMaterial, OBJMesh};
+use nalgebra::{Scale3, Translation3, UnitQuaternion};
 use workspace_root::get_workspace_root;
 
 /// This build script re-parses obj models into `RawMesh`es
@@ -22,36 +24,55 @@ fn main() {
             continue;
         }
         let file_path = file.unwrap().path();
-
-        if !file_path.is_file()
-            || !file_path
-                .extension()
-                .and_then(|ext| ext.to_str())
-                .is_some_and(|ext| ext.eq_ignore_ascii_case("obj"))
-        {
-            continue; // not an obj file
+        if !file_path.is_file() {
+            continue;
         }
 
-        let output_path = out_dir
-            .join(file_path.file_name().unwrap())
-            .with_extension("obj.rs");
-
-        println!(
-            "Preloading OBJ file \'{}\' (output at: \'{}\')",
-            file_path.display(),
-            output_path.display(),
-        );
-
-        match car_game_obj::parse_obj_file(file_path.clone()) {
-            Ok(meshes) => {
-                emit_parsed_obj(meshes, output_path).expect("Error while writing parsed OBJ");
+        let ext = file_path.extension();
+        if ext.is_some_and(|ext| ext.eq_ignore_ascii_case("obj")) {
+            // obj file
+            let output_path = out_dir
+                .join(file_path.file_name().unwrap())
+                .with_extension("obj.rs");
+            println!(
+                "Preloading OBJ file \'{}\' (output at: \'{}\')",
+                file_path.display(),
+                output_path.display(),
+            );
+            match car_game_obj::parse_obj_mesh(file_path.clone()) {
+                Ok(meshes) => {
+                    emit_parsed_obj(meshes, output_path).expect("Error while writing parsed OBJ");
+                }
+                Err(e) => {
+                    println!(
+                        "cargo::error=Error while parsing \'{}\': {}",
+                        file_path.to_str().unwrap(),
+                        e
+                    );
+                }
             }
-            Err(e) => {
-                println!(
-                    "cargo::error=Error while parsing \'{}\': {}",
-                    file_path.to_str().unwrap(),
-                    e
-                );
+        } else if ext.is_some_and(|ext| ext.eq_ignore_ascii_case("csv")) {
+            // csv instance file
+            let output_path = out_dir
+                .join(file_path.file_name().unwrap())
+                .with_extension("csv.rs");
+            println!(
+                "Preloading CSV file \'{}\' (output at: \'{}\')",
+                file_path.display(),
+                output_path.display(),
+            );
+            match car_game_csv::parse_instances_csv(file_path.clone()) {
+                Ok(instances) => {
+                    emit_parsed_instances(instances, output_path)
+                        .expect("Error while writing instance data");
+                }
+                Err(e) => {
+                    println!(
+                        "cargo::error=Error while parsing \'{}\': {}",
+                        file_path.to_str().unwrap(),
+                        e
+                    );
+                }
             }
         }
     }
@@ -93,6 +114,35 @@ fn emit_parsed_obj(meshes: Vec<(OBJMaterial, OBJMesh)>, file_path: PathBuf) -> s
             .as_bytes(),
         )?;
         output.write(b"\t},\n")?;
+    }
+    output.write(b"]")?;
+    Ok(())
+}
+
+fn emit_parsed_instances(instances: Vec<CSVInstance>, file_path: PathBuf) -> std::io::Result<()> {
+    let file = File::create(file_path)?;
+    let mut output = BufWriter::new(file);
+
+    output.write(b"// Generated via build script\n")?;
+    output.write(b"&[\n")?;
+    for instance in instances.iter() {
+        let matrix = {
+            let translation = Translation3::from(instance.position);
+            let rotation = UnitQuaternion::from_euler_angles(
+                instance.rotation[0],
+                instance.rotation[1],
+                instance.rotation[2],
+            );
+            let scale = Scale3::from(instance.scale);
+            translation.to_homogeneous() * rotation.to_homogeneous() * scale.to_homogeneous()
+        };
+        output.write(b"    [")?;
+        for col in matrix.data.0 {
+            output.write(
+                format!("[{}f32,{}f32,{}f32,{}f32],", col[0], col[1], col[2], col[3]).as_bytes(),
+            )?;
+        }
+        output.write(b"],\n")?;
     }
     output.write(b"]")?;
     Ok(())

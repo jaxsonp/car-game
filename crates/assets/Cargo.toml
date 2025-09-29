@@ -7,9 +7,12 @@ edition.workspace = true
 rust-version.workspace = true
 
 [dependencies]
+const-random = "0.1.18"
 nalgebra = { workspace = true }
 rapier3d = { workspace = true }
 
 [build-dependencies]
+car-game-csv = { path = "../csv" }
 car-game-obj = { path = "../obj" }
+nalgebra = { workspace = true }
 workspace_root = "0.1.2"

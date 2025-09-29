@@ -1,10 +1,11 @@
 mod macros;
 pub mod objects;
 
-use nalgebra::{Isometry3, Point3};
 use rapier3d::prelude::ColliderBuilder;
 
 type Color = [f32; 3];
+/// Transform matrix
+type InstanceDescription = [[f32; 4]; 4];
 
 const BLACK: Color = [0.0, 0.0, 0.0];
 const GRAY: Color = [0.5, 0.5, 0.5];
@@ -16,30 +17,17 @@ const BLUE: Color = [0.0, 0.0, 1.0];
 #[allow(non_upper_case_globals)]
 pub trait GameObject {
     const render_meshes: &'static [RawMesh];
+    #[rustfmt::skip]
+    const instances: &'static [InstanceDescription] =
+        &[[
+            [1.0, 0.0, 0.0, 0.0],
+            [0.0, 1.0, 0.0, 0.0],
+            [0.0, 0.0, 1.0, 0.0],
+            [0.0, 0.0, 0.0, 1.0],
+        ]];
     const debug_lines: &'static [RawDebugLine] = &[];
     fn get_collision_box() -> ColliderBuilder {
-        let mut verts: Vec<Point3<f32>> = Vec::new();
-        let mut indices: Vec<[u32; 3]> = Vec::new();
-
-        for mesh in Self::render_meshes {
-            for v in mesh.verts {
-                verts.push(Point3::from(v.pos));
-            }
-            let mut count = 0;
-            let mut cur_face: [u32; 3] = [0; 3];
-            for index in mesh.indices {
-                cur_face[count] = *index as u32;
-                count += 1;
-                if count == 3 {
-                    indices.push(cur_face);
-                    count = 0;
-                }
-            }
-        }
-        ColliderBuilder::trimesh(verts, indices).expect("Failed to create trimesh collision box")
-    }
-    fn get_instances() -> Vec<Isometry3<f32>> {
-        vec![Isometry3::identity()]
+        unimplemented!();
     }
 }
 
