@@ -86,7 +86,7 @@ impl GameSimulation {
         let wheel_transforms = self
             .car
             .wheels
-            .map(|wheel| wheel.get_mesh_transform(&car_transform, self.car.turn_angle));
+            .map(|wheel| wheel.get_mesh_transform(&car_transform, self.car.steer_value));
         let skid_contacts = self.car.wheels.map(|wheel| wheel.get_skid_contact());
 
         self.t += 1;
@@ -102,8 +102,8 @@ impl GameSimulation {
     }
 
     pub fn update_camera(&mut self, adjusted_dt: f32, cam: &mut Camera) {
-        const CAM_EYE_LERP: f32 = 0.06;
-        const CAM_TARGET_LERP: f32 = 0.3;
+        const CAM_EYE_LERP: f32 = 0.05;
+        const CAM_TARGET_LERP: f32 = 0.2;
 
         const CAM_EYE_HEIGHT: f32 = 5.0;
         const CAM_EYE_DIST: f32 = 6.25;
@@ -127,7 +127,7 @@ impl GameSimulation {
             .normalize()
         };
         let mut target_eye: Point3<f32> =
-            car_transform.translation * Point3::new(0.0, CAM_EYE_HEIGHT, 0.0);
+            (car_transform.translation.vector + Vector3::new(0.0, CAM_EYE_HEIGHT, 0.0)).into();
         // casting ray backwards
         let dist = if let Some((_, dist)) = self
             .physics_handler
@@ -157,11 +157,13 @@ impl GameSimulation {
             .wheels
             .map(|wheel| if wheel.contact.is_some() { "X" } else { " " });
         format!(
-            "throttle input: {:?}\nsteer input: {:?}\nthrottle: {:.2}\nsteer: {:.2}\nspeed: {:.2}\nwheels: {}{}\n        {}{}\n",
-            self.car.drive_input,
+            "throttle: {:.2} ({:?})\nsteer: {:.2} ({:?})\ndrift: {:.2} ({})\nspeed: {:.2}\nwheels: {}{}\n        {}{}\n",
+            self.car.throttle_value,
+            self.car.throttle_input,
+            self.car.steer_value,
             self.car.turn_input,
-            self.car.throttle,
-            self.car.turn_angle,
+            self.car.drift_value,
+            self.car.drift_input,
             self.physics_handler.rigid_bodies[self.car.rb_handle]
                 .linvel()
                 .magnitude(),

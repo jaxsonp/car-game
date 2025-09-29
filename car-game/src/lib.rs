@@ -21,7 +21,7 @@ use debug_controller::DebugCameraController;
 use framerate::FramerateCounter;
 
 // Only send UI updates to the web side every __ frames
-const DEBUG_TEXT_UPDATE_RATE: u64 = 20;
+const DEBUG_TEXT_UPDATE_RATE: u64 = 5;
 const SPEED_GAUGE_UPDATE_RATE: u64 = 2;
 
 #[wasm_bindgen]

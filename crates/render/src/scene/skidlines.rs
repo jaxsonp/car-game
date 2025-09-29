@@ -8,8 +8,6 @@ const BUFFER_SIZE: u64 = 300;
 const SKID_SIZE: f32 = 0.3;
 const SKID_OFFSET: f32 = 0.05;
 
-const SKID_SIZE_HALF: f32 = SKID_SIZE * 0.5;
-
 /// Vertex buffer is a circular buffer
 pub struct SkidLine {
     wheel_index: usize,
@@ -38,20 +36,28 @@ impl SkidLine {
             let up_dir: Vector3<f32> = contact.normal;
             let right_dir: Vector3<f32> =
                 (snapshot.car_transform.rotation * Vector3::z()).cross(&up_dir);
-            let skid_center_pos = contact.pos + up_dir.scale(SKID_OFFSET);
+            let skid_center_pos =
+                contact.pos + up_dir.scale(SKID_OFFSET + (self.wheel_index as f32 * 0.002));
 
-            let right_vert = SkidLineVert::from(skid_center_pos + right_dir.scale(SKID_SIZE_HALF));
-            let left_vert = SkidLineVert::from(skid_center_pos + right_dir.scale(-SKID_SIZE_HALF));
+            let vert1 = SkidLineVert::from(skid_center_pos);
+            let vert2 = SkidLineVert::from(
+                skid_center_pos
+                    + right_dir.scale(if self.wheel_index % 2 == 0 {
+                        SKID_SIZE
+                    } else {
+                        -SKID_SIZE
+                    }),
+            );
 
             if self.last_vert.is_none() {
                 // skidding just started, emit degen triangle to cut off strip
-                self.push_vert(queue, right_vert);
-                self.push_vert(queue, right_vert);
+                self.push_vert(queue, vert1);
+                self.push_vert(queue, vert1);
             }
 
-            self.push_vert(queue, right_vert);
-            self.push_vert(queue, left_vert);
-            self.last_vert = Some(left_vert);
+            self.push_vert(queue, vert1);
+            self.push_vert(queue, vert2);
+            self.last_vert = Some(vert2);
         } else {
             // not skidding
             if let Some(last_vert) = self.last_vert {

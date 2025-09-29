@@ -24,7 +24,7 @@ impl CarController {
             KeyCode::KeyA => self.a_pressed = pressed,
             KeyCode::KeyS => self.s_pressed = pressed,
             KeyCode::KeyD => self.d_pressed = pressed,
-            KeyCode::ShiftLeft => self.shift_pressed = pressed,
+            KeyCode::ShiftLeft | KeyCode::ShiftRight => self.shift_pressed = pressed,
             _ => {}
         }
     }
