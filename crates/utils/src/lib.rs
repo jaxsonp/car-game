@@ -7,6 +7,7 @@ pub struct RenderSnapshot {
     pub wheel_transforms: [Isometry3<f32>; 4],
     pub skid_contacts: [Option<SkidContact>; 4],
     pub water_level: f32,
+    pub car_can_unflip: bool,
 }
 
 #[derive(Clone, Copy)]

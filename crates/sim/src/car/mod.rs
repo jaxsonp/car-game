@@ -1,5 +1,7 @@
 mod controller;
 
+use std::f32::consts::{FRAC_PI_2, PI};
+
 use car_game_assets::{GameObject, objects::Car};
 use car_game_utils::SkidContact;
 use nalgebra::{Isometry3, Point3, Rotation3, UnitQuaternion, Vector2, Vector3};
@@ -12,9 +14,10 @@ pub use controller::CarController;
 const MASS: f32 = 3000.0;
 
 const ACCELERATION: f32 = 53.0;
+const LAUNCH_BOOST_FACTOR: f32 = 1.5;
 
 const DRIFT_BOOST_FACTOR: f32 = 1.0;
-const DRIFT_STEER_ASSIST_FACTOR: f32 = 51.0;
+const DRIFT_STEER_ASSIST_FACTOR: f32 = 55.0;
 
 const SLOW_FAST_THRESH: f32 = 24.0;
 
@@ -62,19 +65,26 @@ pub struct CarHandler {
     pub throttle_input: DriveInputState,
     pub turn_input: TurnInputState,
     pub drift_input: bool,
+
+    pub time_flipped: f32,
 }
 impl CarHandler {
     pub fn new(physics: &mut PhysicsHandler) -> CarHandler {
         let rbody = RigidBodyBuilder::dynamic()
             .additional_mass(MASS)
             .position(Isometry3::from_parts(
-                Point3::new(0.0, 5.0, 250.0).into(),
-                Rotation3::identity().into(),
+                Point3::new(0.0, 8.0, -100.0).into(),
+                Rotation3::from_euler_angles(0.0, PI, PI).into(),
             ))
             .can_sleep(false) // car doesn't sleep
             .build();
         let collider = Car::get_collision_box().build();
         let (rb_handle, collider_handle) = physics.insert_object(rbody, Some(collider));
+
+        physics
+            .car_rb_handle
+            .set(rb_handle)
+            .expect("Car handle already set in physics handler, init twice?");
 
         CarHandler {
             rb_handle,
@@ -87,6 +97,7 @@ impl CarHandler {
             throttle_input: DriveInputState::Coasting,
             turn_input: TurnInputState::None,
             drift_input: false,
+            time_flipped: 0.0,
         }
     }
 
@@ -199,7 +210,11 @@ impl CarHandler {
 
                 // friction forces
                 let lat_force = tire_velocity.normalize().dot(&wheel_right_dir) * -WHEEL_GRIP;
-                let long_force = self.throttle_value;
+                let long_force = if car_linvel_mag < 7.0 {
+                    self.throttle_value * LAUNCH_BOOST_FACTOR
+                } else {
+                    self.throttle_value
+                };
                 let mut wheel_forces = Vector2::new(lat_force, long_force);
                 let wheel_forces_mag = wheel_forces.magnitude();
 
@@ -262,6 +277,13 @@ impl CarHandler {
         } else {
             car_rb.set_linear_damping(0.0);
             car_rb.set_angular_damping(0.0);
+        }
+
+        // check if car is flipped
+        if car_up_dir.y < 0.5 && car_linvel.magnitude_squared() < 16.0 {
+            self.time_flipped += dt;
+        } else {
+            self.time_flipped = 0.0;
         }
     }
 
@@ -333,17 +355,19 @@ impl WheelInfo {
         let ray = Ray::new(ray_origin, -car_up_dir);
         self.ray = Some(ray);
         if let Some((_collider, intersection)) =
-            query_pipeline.cast_ray_and_get_normal(&ray, SUSPENSION_MAX + WHEEL_RADIUS, true)
+            query_pipeline.cast_ray_and_get_normal(&ray, SUSPENSION_MAX + WHEEL_RADIUS, false)
             && intersection.time_of_impact > 0.0
+            && intersection.normal.dot(&(-ray.dir)).acos() < FRAC_PI_2 * 0.9
         {
             self.contact = Some((intersection.time_of_impact, intersection.normal));
             self.suspension_compression = ((SUSPENSION_MAX + WHEEL_RADIUS)
                 - intersection.time_of_impact)
                 / (SUSPENSION_MAX + WHEEL_RADIUS);
-        } else {
-            self.contact = None;
-            self.suspension_compression = 0.0;
+            return;
         }
+
+        self.contact = None;
+        self.suspension_compression = 0.0;
     }
 
     pub fn get_mesh_transform(

@@ -6,6 +6,7 @@ declare global {
     showDebugText: (show: boolean) => void;
     setDebugText: (text: string) => void;
     setSpeed: (speed: number) => void;
+    showFlipMessage: (show: boolean) => void;
   }
 }
 
@@ -37,10 +38,19 @@ window.setDebugText = (text: string): void => {
 }
 
 window.setSpeed = (speed: number): void => {
-	const gauge = document.getElementById("speed-gauge-container");
+	const gauge = document.getElementById("gauge-container");
 	if (gauge) {
-		gauge.style.setProperty('--value', speed.toString());
+		gauge.style.setProperty('--speed', speed.toString());
 	} else {
-		console.warn('Failed to find speed gauge element');
+		console.warn('Failed to find gauge container element');
+	}
+}
+
+window.showFlipMessage = (show: boolean): void => {
+	const msg = document.getElementById("flip-msg");
+	if (msg) {
+		show ?  msg.classList.add("visible") : msg.classList.remove("visible");
+	} else {
+		console.warn('Failed to find flip message element');
 	}
 }

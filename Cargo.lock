@@ -302,6 +302,7 @@ version = "0.1.0"
 dependencies = [
  "car-game-assets",
  "car-game-utils",
+ "instant",
  "log",
  "noise",
  "rapier3d",

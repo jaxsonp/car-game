@@ -13,4 +13,7 @@ extern "C" {
 
     #[wasm_bindgen(js_name = setSpeed)]
     pub fn set_speed(string: f32);
+
+    #[wasm_bindgen(js_name = showFlipMessage)]
+    pub fn show_flip_message(show: bool);
 }

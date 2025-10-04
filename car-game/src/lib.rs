@@ -58,10 +58,14 @@ pub struct App {
     debug_text_shown: bool,
     debug_camera_activated: bool,
     debug_camera_controller: DebugCameraController,
+    flip_message_shown: bool,
 }
 
 impl App {
     pub fn new(event_loop: &EventLoop<RenderState>, canvas_id: String) -> Self {
+        web_interface::show_flip_message(false);
+        web_interface::show_pause_menu(false);
+        web_interface::show_debug_text(false);
         Self {
             canvas_id,
             proxy: Some(event_loop.create_proxy()),
@@ -73,6 +77,7 @@ impl App {
             debug_text_shown: false,
             debug_camera_activated: false,
             debug_camera_controller: DebugCameraController::new(),
+            flip_message_shown: false,
         }
     }
 }
@@ -179,6 +184,16 @@ impl ApplicationHandler<RenderState> for App {
                     self.speed_averager.push(snapshot.car_speed);
                     if self.sim.t % SPEED_GAUGE_UPDATE_RATE == 0 {
                         web_interface::set_speed(self.speed_averager.mean / 38.0);
+                    }
+
+                    if snapshot.car_can_unflip {
+                        if !self.flip_message_shown {
+                            web_interface::show_flip_message(true);
+                            self.flip_message_shown = true;
+                        }
+                    } else if self.flip_message_shown {
+                        web_interface::show_flip_message(false);
+                        self.flip_message_shown = false;
                     }
 
                     Some(snapshot)

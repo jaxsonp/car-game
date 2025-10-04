@@ -13,6 +13,10 @@ use car::{CarController, CarHandler};
 const WATER_LEVEL_BASE: f32 = -1.68847;
 const WATER_LEVEL_MOVEMENT: f32 = 1.0;
 
+/// seconds
+const TIME_TILL_UNFLIP: f32 = 2.0;
+const UNFLIP_HOLD_TIME: f32 = 1.0;
+
 pub struct GameSimulation {
     pub t: u64,
     pub real_t: f64,
@@ -73,8 +77,23 @@ impl GameSimulation {
             },
             water_level,
         );
+
+        let car_can_unflip = self.car.time_flipped >= TIME_TILL_UNFLIP;
+        self.controller.car_can_unflip = car_can_unflip;
+        if car_can_unflip
+            && self
+                .controller
+                .r_hold_duration()
+                .is_some_and(|d| d >= UNFLIP_HOLD_TIME)
+        {
+            self.physics_handler.unflip_car();
+            self.car.time_flipped = 0.0;
+        }
+
         self.physics_handler.step(dt);
         self.car.calculate_wheel_data(&mut self.physics_handler);
+
+        // calculating render params
 
         let car_rb = &self.physics_handler.rigid_bodies[self.car.rb_handle];
         let car_transform = *car_rb.position();
@@ -98,6 +117,7 @@ impl GameSimulation {
             wheel_transforms,
             skid_contacts,
             water_level,
+            car_can_unflip,
         }
     }
 

@@ -9,6 +9,7 @@ rust-version.workspace = true
 [dependencies]
 car-game-assets = { workspace = true }
 car-game-utils = { workspace = true }
+instant = "0.1"
 rapier3d = { workspace = true }
 log = { workspace = true }
 noise = "0.9"

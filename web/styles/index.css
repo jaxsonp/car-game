@@ -56,7 +56,7 @@ main > * {
 
 	display: none; /* flex, but initially hidden */
 	background: #1E1E28;
-	background: linear-gradient(90deg, rgba(30, 30, 40, 0.9) 15%, rgba(30, 30, 40, 0) 100%);
+	background: linear-gradient(90deg, rgba(30, 30, 40, 1) 5%, rgba(30, 30, 40, 0.9) 15%, rgba(30, 30, 40, 0) 100%);
 	border-radius: 2px;
 
 	padding: 3rem;
@@ -65,7 +65,7 @@ main > * {
 	row-gap: 1rem;
 }
 
-#speed-gauge-container {
+#gauge-container {
 	position: absolute;
 	right: 1rem;
 	bottom: 1rem;
@@ -91,7 +91,7 @@ main > * {
 #speed-gauge .fill {
 	stroke: whitesmoke;
 	stroke-width: 0.25rem;
-	stroke-dasharray: calc(var(--value) * 235.62px) 236px;
+	stroke-dasharray: calc(var(--speed) * 235.62px) 236px;
 	
 	will-change: contents;
 }
@@ -105,7 +105,7 @@ main > * {
 	stroke-linecap: round;
 
 	will-change: transform;
-	transform: rotateZ(calc(var(--value) * 270deg));
+	transform: rotateZ(calc(var(--speed) * 270deg));
 }
 
 #debug-text {
@@ -120,4 +120,33 @@ main > * {
 	background-color: rgba(255, 255, 255, 0.2);
 
 	will-change: contents;
+}
+
+#flip-msg-container {
+	inset: 0;
+	display: flex;
+	justify-content: center;
+	align-items: start;
+}
+
+#flip-msg {
+	margin-top: 80vh;
+
+	padding: 0 0.5rem;
+	border-radius: 0.5rem;
+	background: rgba(30, 30, 40, 0.7);
+	box-shadow: 0 0 4px 4px rgba(30, 30, 40, 0.7);
+	
+	opacity: 0; /* controlled by wasm */
+	transition-property: opacity;
+	transition-timing-function: ease-in-out;
+	transition-duration: 0.1s;
+
+	color: whitesmoke;
+	font-size: xx-large;
+}
+
+#flip-msg.visible {
+	opacity: 1;
+	transition-duration: 1s;
 }

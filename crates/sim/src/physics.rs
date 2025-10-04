@@ -1,6 +1,12 @@
+use std::cell::OnceCell;
+
+use nalgebra::Vector3;
 use rapier3d::prelude::*;
 
 const GRAVITY: f32 = 9.81;
+
+const UNFLIP_DURATION: f32 = 2.1;
+const UNFLIP_UP_FORCE: f32 = 40_000.0;
 
 pub struct PhysicsHandler {
     pub rigid_bodies: RigidBodySet,
@@ -8,11 +14,15 @@ pub struct PhysicsHandler {
     physics_pipeline: PhysicsPipeline,
     integration_params: IntegrationParameters,
     island_manager: IslandManager,
-    pub broad_phase: BroadPhaseBvh,
-    pub narrow_phase: NarrowPhase,
+    broad_phase: BroadPhaseBvh,
+    narrow_phase: NarrowPhase,
     impulse_joints: ImpulseJointSet,
     multibody_joints: MultibodyJointSet,
     ccd_solver: CCDSolver,
+
+    /// remember for convenience
+    pub car_rb_handle: OnceCell<RigidBodyHandle>,
+    car_unflipping_time_left: f32,
 }
 impl PhysicsHandler {
     pub fn new() -> PhysicsHandler {
@@ -27,6 +37,9 @@ impl PhysicsHandler {
             impulse_joints: ImpulseJointSet::new(),
             multibody_joints: MultibodyJointSet::new(),
             ccd_solver: CCDSolver::new(),
+
+            car_rb_handle: OnceCell::new(),
+            car_unflipping_time_left: 0.0,
         }
     }
 
@@ -47,6 +60,36 @@ impl PhysicsHandler {
             &(),
             &(),
         );
+
+        if self.car_unflipping_time_left > 0.0 {
+            if let Some(rb_handle) = self.car_rb_handle.get() {
+                let car_rb = &mut self.rigid_bodies[*rb_handle];
+
+                // applying a torque to self-right car
+                let up = Vector3::y();
+                let car_up: Vector3<f32> = car_rb.rotation() * up;
+                if car_up.dot(&up).acos() < 0.02 {
+                    // if upright, stop self-righting
+                    self.car_unflipping_time_left = 0.0;
+                    car_rb.set_angvel(Vector3::zeros(), true);
+                } else {
+                    let torque_axis: Vector3<f32> = car_up.cross(&up).normalize();
+                    car_rb.apply_torque_impulse(torque_axis * 1000.0, true);
+
+                    // angular damping
+                    car_rb.apply_torque_impulse(car_rb.angvel() * -250.0, true);
+                }
+            }
+
+            self.car_unflipping_time_left -= dt;
+        } else if self.car_unflipping_time_left < 0.0 {
+            self.car_unflipping_time_left = 0.0;
+            // diminish angular velocity when done unflipping
+            if let Some(rb_handle) = self.car_rb_handle.get() {
+                let car_rb = &mut self.rigid_bodies[*rb_handle];
+                car_rb.set_angvel(car_rb.angvel() * 0.5, true);
+            }
+        }
     }
 
     /// Insert a rigid body and optionally an associated collider into the scene. Returns the respective handle(s)
@@ -70,5 +113,20 @@ impl PhysicsHandler {
             &self.colliders,
             filter,
         )
+    }
+
+    pub fn unflip_car(&mut self) {
+        log::debug!("Unflipping car");
+        let car_rb_handle = self.car_rb_handle.get();
+        if car_rb_handle.is_none() {
+            log::error!("car handle not set");
+            return;
+        }
+        let car_rb_handle = *car_rb_handle.unwrap();
+        let car_rb = &mut self.rigid_bodies[car_rb_handle];
+
+        car_rb.apply_impulse(Vector3::y() * UNFLIP_UP_FORCE, true);
+
+        self.car_unflipping_time_left = UNFLIP_DURATION;
     }
 }
