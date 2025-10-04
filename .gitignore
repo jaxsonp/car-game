@@ -1,5 +1,6 @@
 /target
 /wasm-pack.log
+/dist
 
 /web/pkg/*
 /web/scripts/*.js
