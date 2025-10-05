@@ -7,8 +7,7 @@ pub struct Ground {}
 impl GameObject for Ground {
     const render_meshes: &'static [RawMesh] = preloaded_file!("ground.obj");
 
-    #[rustfmt::skip]
-    const debug_lines: &'static [RawDebugLine] = &[
+    /*const debug_lines: &'static [RawDebugLine] = &[
         // origin
         RawDebugLine { col: RED, pos1: [0.0, 0.0, 0.0], pos2: [1.0, 0.0, 0.0], },
         RawDebugLine { col: GREEN, pos1: [0.0, 0.0, 0.0], pos2: [0.0, 1.0, 0.0], },
@@ -16,7 +15,7 @@ impl GameObject for Ground {
         RawDebugLine { col: GRAY, pos1: [0.0, 0.0, 0.0], pos2: [-1.0, 0.0, 0.0], },
         RawDebugLine { col: GRAY, pos1: [0.0, 0.0, 0.0], pos2: [0.0, -1.0, 0.0], },
         RawDebugLine { col: GRAY, pos1: [0.0, 0.0, 0.0], pos2: [0.0, 0.0, -1.0], },
-    ];
+    ];*/
 
     fn get_collision_box() -> ColliderBuilder {
         let hitbox_mesh: RawMesh = preloaded_file!("ground_hitbox.obj")[0];
@@ -124,6 +123,31 @@ impl GameObject for Trees1 {
     const render_meshes: &'static [RawMesh] = preloaded_file!("tree1.obj");
 
     const instances: &'static [[[f32; 4]; 4]] = preloaded_file!("tree1_instances.csv");
+
+    fn get_collision_box() -> ColliderBuilder {
+        ColliderBuilder::compound(
+            Self::instances
+                .into_iter()
+                .map(|transform| {
+                    (
+                        Isometry3::from(Translation3::new(
+                            transform[3][0],
+                            transform[3][1],
+                            transform[3][2],
+                        )),
+                        SharedShape::cylinder(3.0, 0.23),
+                    )
+                })
+                .collect(),
+        )
+    }
+}
+
+pub struct Trees2 {}
+impl GameObject for Trees2 {
+    const render_meshes: &'static [RawMesh] = preloaded_file!("tree2.obj");
+
+    const instances: &'static [[[f32; 4]; 4]] = preloaded_file!("tree2_instances.csv");
 
     fn get_collision_box() -> ColliderBuilder {
         ColliderBuilder::compound(

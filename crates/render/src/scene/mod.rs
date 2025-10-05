@@ -379,6 +379,7 @@ impl Scene {
             Model::from_object::<objects::Buildings>("Buildings", device),
             Model::from_object::<objects::Streetlights>("Streetlights", device),
             Model::from_object::<objects::Trees1>("Trees1", device),
+            Model::from_object::<objects::Trees2>("Trees2", device),
         ];
         let unshaded_static_models: Vec<Model> = vec![
             Model::from_object::<objects::GrassTufts1>("GrassTufts1", device),

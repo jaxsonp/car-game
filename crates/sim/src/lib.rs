@@ -39,6 +39,7 @@ impl GameSimulation {
             objects::Buildings::get_collision_box(),
             objects::Streetlights::get_collision_box(),
             objects::Trees1::get_collision_box(),
+            objects::Trees2::get_collision_box(),
         ] {
             physics_handler.insert_object(
                 RigidBodyBuilder::new(RigidBodyType::Fixed).build(),

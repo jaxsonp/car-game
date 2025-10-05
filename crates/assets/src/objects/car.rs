@@ -59,7 +59,7 @@ impl Car {
 impl GameObject for Car {
     const render_meshes: &'static [RawMesh] = preloaded_file!("car.obj");
 
-    const debug_lines: &'static [RawDebugLine] = &debug_lines! {
+    /*const debug_lines: &'static [RawDebugLine] = &debug_lines! {
         // top of toppart
         Self::HITBOX_PARTS.0[0] => Self::HITBOX_PARTS.0[1] => Self::HITBOX_PARTS.0[2] => Self::HITBOX_PARTS.0[3] => Self::HITBOX_PARTS.0[0];
         // bottom of top part
@@ -90,7 +90,7 @@ impl GameObject for Car {
         // marker
         [0.0, 0.0, 0.0] => [0.0, 2.0, 0.0];
 
-    };
+    };*/
 
     fn get_collision_box() -> ColliderBuilder {
         let top_points: Vec<Point<f32>> = Self::HITBOX_PARTS
@@ -122,10 +122,10 @@ pub struct Wheel {}
 impl GameObject for Wheel {
     const render_meshes: &'static [RawMesh] = preloaded_file!("wheel.obj");
 
-    const debug_lines: &'static [RawDebugLine] = &debug_lines!(
+    /*const debug_lines: &'static [RawDebugLine] = &debug_lines!(
         [0.0, 0.0, 0.0] => [0.0, 0.5, 0.0];
         [0.0, 0.0, 0.0] => [-0.5, 0.0, 0.0];
-    );
+    );*/
 
     fn get_collision_box() -> ColliderBuilder {
         // wheel collision is handled artificially
