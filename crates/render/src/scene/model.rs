@@ -27,7 +27,6 @@ pub struct Model {
     static_transform: Option<Isometry3<f32>>,
     new_transform: Option<Isometry3<f32>>,
     model_transform_buffer: Buffer,
-    normal_transform_buffer: Buffer,
 }
 impl Model {
     pub fn from_object<GO: GameObject>(name: &str, device: &wgpu::Device) -> Model {
@@ -48,12 +47,6 @@ impl Model {
             usage: BufferUsages::COPY_DST.union(BufferUsages::UNIFORM),
             mapped_at_creation: false,
         });
-        let normal_transform_buffer = device.create_buffer(&BufferDescriptor {
-            label: Some("normal transform buffer"),
-            size: size_of::<Matrix4Uniform>() as u64,
-            usage: BufferUsages::COPY_DST.union(BufferUsages::UNIFORM),
-            mapped_at_creation: false,
-        });
 
         let instance_data: Vec<Matrix4Uniform> = GO::instances
             .into_iter()
@@ -70,16 +63,10 @@ impl Model {
         let bind_group = device.create_bind_group(&BindGroupDescriptor {
             label: Some("model bind group"),
             layout: &bind_group_layout,
-            entries: &[
-                BindGroupEntry {
-                    binding: 0,
-                    resource: model_transform_buffer.as_entire_binding(),
-                },
-                BindGroupEntry {
-                    binding: 1,
-                    resource: normal_transform_buffer.as_entire_binding(),
-                },
-            ],
+            entries: &[BindGroupEntry {
+                binding: 0,
+                resource: model_transform_buffer.as_entire_binding(),
+            }],
         });
 
         log::debug!(
@@ -108,7 +95,6 @@ impl Model {
             static_transform: None,
             new_transform: Some(Isometry3::identity()),
             model_transform_buffer,
-            normal_transform_buffer,
         }
     }
 
@@ -123,28 +109,16 @@ impl Model {
             .get_or_init(|| {
                 device.create_bind_group_layout(&BindGroupLayoutDescriptor {
                     label: Some("model bind group layout"),
-                    entries: &[
-                        BindGroupLayoutEntry {
-                            binding: 0,
-                            visibility: ShaderStages::VERTEX,
-                            ty: BindingType::Buffer {
-                                ty: BufferBindingType::Uniform,
-                                has_dynamic_offset: false,
-                                min_binding_size: None,
-                            },
-                            count: None,
+                    entries: &[BindGroupLayoutEntry {
+                        binding: 0,
+                        visibility: ShaderStages::VERTEX,
+                        ty: BindingType::Buffer {
+                            ty: BufferBindingType::Uniform,
+                            has_dynamic_offset: false,
+                            min_binding_size: None,
                         },
-                        BindGroupLayoutEntry {
-                            binding: 1,
-                            visibility: ShaderStages::VERTEX,
-                            ty: BindingType::Buffer {
-                                ty: BufferBindingType::Uniform,
-                                has_dynamic_offset: false,
-                                min_binding_size: None,
-                            },
-                            count: None,
-                        },
-                    ],
+                        count: None,
+                    }],
                 })
             })
             .clone()
@@ -159,13 +133,6 @@ impl Model {
                 &self.model_transform_buffer,
                 0,
                 bytemuck::cast_slice(&(Matrix4Uniform::from(transform).get_slice())),
-            );
-            queue.write_buffer(
-                &self.normal_transform_buffer,
-                0,
-                bytemuck::cast_slice(
-                    &(Matrix4Uniform::from(transform.rotation.to_homogeneous()).get_slice()),
-                ),
             );
             self.new_transform = None;
         }

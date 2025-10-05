@@ -11,7 +11,6 @@
 //   4: shadow map sampler
 // 1: Once per model
 //   0: model transform matrix
-//   1: normal transform matrix
 // 2: Once per mesh/material
 //   0: mesh diffuse color
 
@@ -34,9 +33,6 @@ var shadow_map_sampler: sampler_comparison;
 
 @group(1) @binding(0)
 var<uniform> model_transform: mat4x4<f32>;
-
-@group(1) @binding(1)
-var<uniform> normal_transform: mat4x4<f32>;
 
 
 @group(2) @binding(0)
@@ -104,7 +100,7 @@ fn vert_scene(
 
     var out: VertexOutput;
     out.clip_pos = camera_matrix * world_pos;
-    out.normal = (normal_transform * vec4<f32>(vert.normal, 0.0)).xyz;
+    out.normal = (instance_transform * model_transform * vec4<f32>(vert.normal, 0.0)).xyz;
     out.shadow_map_pos = shadow_map_view_proj_matrix * world_pos;
     return out;
 }
