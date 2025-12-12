@@ -7,11 +7,11 @@ type Color = [f32; 3];
 /// Transform matrix
 type InstanceDescription = [[f32; 4]; 4];
 
-const BLACK: Color = [0.0, 0.0, 0.0];
+/*const BLACK: Color = [0.0, 0.0, 0.0];
 const GRAY: Color = [0.5, 0.5, 0.5];
 const RED: Color = [1.0, 0.0, 0.0];
 const GREEN: Color = [0.0, 1.0, 0.0];
-const BLUE: Color = [0.0, 0.0, 1.0];
+const BLUE: Color = [0.0, 0.0, 1.0];*/
 
 /// Describes a game object, provides a default implementation of a collision box which creates it from the render mesh
 #[allow(non_upper_case_globals)]

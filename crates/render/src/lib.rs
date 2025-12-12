@@ -31,9 +31,10 @@ impl RenderState {
     pub async fn new(window: Arc<Window>) -> anyhow::Result<Self> {
         let size = window.inner_size();
 
-        // choose webgpu if available, else webgl
+        // only supporting webgl for now cus browser webgpu was giving me headaches
         let instance = wgpu::util::new_instance_with_webgpu_detection(&wgpu::InstanceDescriptor {
-            backends: wgpu::Backends::BROWSER_WEBGPU | wgpu::Backends::GL,
+            //backends: wgpu::Backends::BROWSER_WEBGPU | wgpu::Backends::GL,
+            backends: wgpu::Backends::GL,
             ..Default::default()
         })
         .await;
@@ -69,7 +70,13 @@ impl RenderState {
             .iter()
             .find(|f| f.is_srgb())
             .copied()
-            .unwrap_or(surface_caps.formats[0]);
+            .unwrap_or_else(|| {
+                log::warn!(
+                    "No sRGB format found, using fallback: {:?}",
+                    surface_caps.formats[0]
+                );
+                surface_caps.formats[0]
+            });
         let config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
             format: surface_format,
